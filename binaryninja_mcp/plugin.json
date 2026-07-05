@@ -1,0 +1,33 @@
+{
+    "pluginmetadataversion": 2,
+    "name": "EDB Debugger Bridge",
+    "type": [
+        "binaryview",
+        "ui"
+    ],
+    "api": [
+        "python3"
+    ],
+    "description": "Live debugger integration with EDB MCP (GDB MI backend). Register overlay, single-click breakpoints/patch, step control.",
+    "longdescription": "See README.md",
+    "license": {
+        "name": "MIT",
+        "text": ""
+    },
+    "dependencies": {
+        "pip": []
+    },
+    "platforms": [
+        "Linux",
+        "Windows",
+        "Darwin"
+    ],
+    "installinstructions": {
+        "Linux": "See binaryninja_mcp/README.md",
+        "Windows": "See binaryninja_mcp/README.md",
+        "Darwin": "See binaryninja_mcp/README.md"
+    },
+    "version": "1.0.0",
+    "author": "EDB MCP",
+    "minimumbinaryninjaversion": 3200
+}
