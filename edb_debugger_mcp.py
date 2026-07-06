@@ -3586,6 +3586,8 @@ def main():
         except Exception:
             pass
 
+import sys as _sys
+_sys.modules.setdefault("edb_debugger_mcp", _sys.modules["__main__"])
 try:
     import pwntools_mcp  # noqa: F401
 except ImportError:

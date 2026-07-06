@@ -7,7 +7,9 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
-![EDB Debugger MCP Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-demo.gif)
+| Workflow Demo | Split-Screen Demo |
+|:---:|:---:|
+| ![Workflow](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif) | ![Split-Screen](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif) |
 
 ## About
 

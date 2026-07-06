@@ -34,7 +34,7 @@ class MCPClient:
             cwd=MCP_ROOT,
         )
         resp = self._send_request("initialize", {
-            "protocolVersion": "2025-03-26",
+            "protocolVersion": "2024-11-05",
             "capabilities": {},
             "clientInfo": {"name": "binaryninja-edb-bridge", "version": "1.0.0"},
         })
@@ -56,9 +56,11 @@ class MCPClient:
         return resp.get("tools", [])
 
     def call_tool(self, name: str, arguments: dict = None) -> Any:
+        # FastMCP wraps single-param functions in a "params" field
+        args = {"params": arguments or {}}
         resp = self._send_request("tools/call", {
             "name": name,
-            "arguments": arguments or {},
+            "arguments": args,
         })
         content = resp.get("content", [])
         texts = [c["text"] for c in content if c.get("type") == "text"]
@@ -100,27 +102,14 @@ class MCPClient:
     def _write(self, msg: str):
         if not self._process or not self._process.stdin:
             raise ConnectionError("MCP server not running")
-        content = (msg + "\n").encode("utf-8")
-        header = f"Content-Length: {len(content)}\r\n\r\n".encode()
-        self._process.stdin.write(header + content)
+        payload = (msg + "\n").encode("utf-8")
+        self._process.stdin.write(payload)
         self._process.stdin.flush()
 
     def _read_line(self) -> Optional[str]:
         if not self._process or not self._process.stdout:
             raise ConnectionError("MCP server not running")
-        headers = {}
-        while True:
-            line = self._process.stdout.readline()
-            if not line:
-                return None
-            line = line.decode("utf-8", errors="replace").strip()
-            if not line:
-                break
-            if ":" in line:
-                k, v = line.split(":", 1)
-                headers[k.strip().lower()] = v.strip()
-        length = int(headers.get("content-length", 0))
-        if not length:
+        line = self._process.stdout.readline()
+        if not line:
             return None
-        raw = self._process.stdout.read(length)
-        return raw.decode("utf-8", errors="replace")
+        return line.decode("utf-8", errors="replace").strip()
