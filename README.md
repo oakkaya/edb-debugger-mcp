@@ -1,14 +1,55 @@
 # EDB Debugger MCP
 
-![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)
+[![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/oakkaya/edb-debugger-mcp/actions)
 [![PyPI](https://img.shields.io/badge/PyPI-edb--debugger--mcp-blue)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
+[![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
+[![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
 ![EDB Debugger MCP Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-demo.gif)
 
-An MCP (Model Context Protocol) server that provides full [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) functionality via a GDB MI (Machine Interface) backend. Built with Python and FastMCP, this server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC) that can be used by any MCP-enabled AI assistant or IDE (Claude Desktop, Cursor, etc.).
+## About
 
-EDB feature coverage: **22/22 plugins, 29/29 actions, 13/13 dialogs, 6/6 views** — %100.
+[EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
+
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
+
+Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
+
+| Stat | Value |
+|------|-------|
+| Total tools | **147** (135 edb_ + 12 pwntools_) |
+| EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
+| Code size | ~6100 LOC · 83 Pydantic models · 123 backend methods |
+
+[EDB](https://github.com/eteran/edb-debugger) · [GDB](https://www.sourceware.org/gdb/) · [MCP](https://modelcontextprotocol.io) · [FastMCP](https://github.com/jlowin/fastmcp) · [pwntools](https://github.com/Gallopsled/pwntools) · [Binary Ninja](https://binary.ninja/)
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Use Cases](#use-cases)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Standalone](#standalone)
+  - [Claude Desktop Integration](#claude-desktop-integration)
+- [Tool Reference](#tool-reference)
+- [Architecture](#architecture)
+- [EDB Plugin Mapping](#edb-plugin-mapping)
+- [Binary Ninja Integration](#binary-ninja-integration)
+- [Project Structure](#project-structure)
+- [License](#license)
+
+## Quick Start
+
+```bash
+pip install edb-debugger-mcp
+edb-debugger-mcp &
+```
+
+Then add to Claude Desktop config and ask: *"Load /bin/ls, find ROP gadgets with pop eax, and generate execve shellcode"* — the AI handles the rest.
 
 ## Features
 
@@ -29,6 +70,15 @@ EDB feature coverage: **22/22 plugins, 29/29 actions, 13/13 dialogs, 6/6 views**
 - **Environment** — Get/set/unset env vars, set working directory, TTY, signal handling
 - **Configuration** — ASLR toggle, lazy binding toggle, debug output, session logging, signal ignore list
 - **Utility** — Binary string convert (hex↔ascii↔utf-16), file↔VA offset convert, font config
+- **Pwntools Integration** — Assembly/disassembly (Keystone/Capstone), ELF analysis, ROP gadget search, shellcode generation, cyclic pattern, format string payloads, pack/unpack
+
+## Use Cases
+
+- **CTF Exploit Development** — `pwntools_cyclic` → offset → `edb_find_rop_gadgets` → `pwntools_shellcraft` → `pwntools_asm`
+- **Malware Analysis** — `edb_attach_process` → `edb_set_breakpoint` → `edb_read_memory` → `edb_generate_core_dump`
+- **Bug Hunting** — `edb_disable_aslr` → `edb_run` → `edb_search_memory` → `edb_analyze_heap`
+- **Vulnerability Research** — `edb_evaluate_expression` → `edb_get_stack` → `edb_instruction_detail` → `edb_call_function`
+- **Reverse Engineering** — `edb_disassemble_range` → `edb_generate_cfg` → `edb_find_strings` → `edb_lookup_symbol`
 
 ## Requirements
 
