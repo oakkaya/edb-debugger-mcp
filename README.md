@@ -6,7 +6,7 @@
 
 ![EDB Debugger MCP Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-demo.gif)
 
-An MCP (Model Context Protocol) server that provides full EDB (Evan's Debugger) functionality via a GDB MI (Machine Interface) backend. Built with Python and FastMCP, this server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC) that can be used by any MCP-enabled AI assistant or IDE (Claude Desktop, Cursor, etc.).
+An MCP (Model Context Protocol) server that provides full [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) functionality via a GDB MI (Machine Interface) backend. Built with Python and FastMCP, this server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC) that can be used by any MCP-enabled AI assistant or IDE (Claude Desktop, Cursor, etc.).
 
 EDB feature coverage: **22/22 plugins, 29/29 actions, 13/13 dialogs, 6/6 views** — %100.
 
