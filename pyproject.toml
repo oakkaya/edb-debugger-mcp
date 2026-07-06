@@ -1,6 +1,6 @@
 [project]
 name = "edb-debugger-mcp"
-version = "1.0.0"
+version = "1.0.1"
 description = "MCP server providing full EDB (Evan's Debugger) functionality via a GDB MI backend"
 readme = "README.md"
 license = { text = "MIT" }
