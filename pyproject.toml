@@ -1,6 +1,6 @@
 [project]
 name = "edb-debugger-mcp"
-version = "1.0.1"
+version = "1.0.2"
 description = "MCP server providing full EDB (Evan's Debugger) functionality via a GDB MI backend"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,6 +24,14 @@ transport = "stdio"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "edb_debugger_mcp.py",
+    "gdb_backend.py",
+    "pwntools_mcp.py",
+    "binaryninja_mcp/",
+]
 
 [project.scripts]
 edb-debugger-mcp = "edb_debugger_mcp:main"
