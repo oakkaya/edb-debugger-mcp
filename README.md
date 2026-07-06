@@ -339,7 +339,7 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 - Manages process lifecycle (start, kill, detach)
 - Provides `readelf`-based file offset ↔ VA conversion
 
-> **Not:** README'de belirtilen EDB action/dialog/view sayıları EDB'nin tüm UI öğelerini kapsar. Bu proje bir MCP sunucusu olduğu için **UI-only özellikler** (About dialog, font seçici, Reset UI, pencere düzeni) aktarılamamıştır. Tüm **fonksiyonel debugging yetenekleri** (breakpoint, register, memory, stack, thread, expression, patching, analiz, ROP, session) %100 kapsanmıştır.
+> **Note:** The EDB action/dialog/view counts listed in this README cover all of EDB's UI elements. Since this project is an MCP server, **UI-only features** (About dialog, font selector, Reset UI, window layout) cannot be mapped. All **functional debugging capabilities** (breakpoint, register, memory, stack, thread, expression, patching, analysis, ROP, session) are 100% covered.
 
 ## EDB Plugin Mapping
 
