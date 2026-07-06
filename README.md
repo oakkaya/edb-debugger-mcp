@@ -71,7 +71,19 @@ gcc -g -o /tmp/test_bin /path/to/test.c
 
 ### Claude Desktop Integration
 
-Add to your `claude_desktop_config.json`:
+If installed via pip:
+
+```json
+{
+  "mcpServers": {
+    "edb-debugger-mcp": {
+      "command": "edb-debugger-mcp"
+    }
+  }
+}
+```
+
+If installed from source:
 
 ```json
 {
@@ -83,6 +95,11 @@ Add to your `claude_desktop_config.json`:
   }
 }
 ```
+
+Config file location:
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
 ## Tool Reference
 
