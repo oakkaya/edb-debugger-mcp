@@ -122,7 +122,7 @@ def run_continue(_bv: BinaryView):
 
 def pause(_bv: BinaryView):
     c = _get_client()
-    c.call_tool("edb_interrupt", {})
+    c.call_tool("edb_pause", {})
 
 
 # ── Register inspection ──────────────────────────────
