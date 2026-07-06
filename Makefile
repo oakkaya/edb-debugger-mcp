@@ -5,6 +5,9 @@
 test:
 	python3 -m pytest tests/ -v --tb=short
 
+test-cov:
+	python3 -m pytest tests/ -v --tb=short --ignore=tests/live_test.py --ignore=tests/test_integration.py -k "not integration" --cov=edb_debugger_mcp --cov=gdb_backend --cov=pwntools_mcp --cov-report=term
+
 test-live:
 	python3 tests/live_test.py
 

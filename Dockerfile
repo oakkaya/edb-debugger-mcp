@@ -9,8 +9,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY pyproject.toml README.md ./
-COPY edb_debugger_mcp.py gdb_backend.py pwntools_mcp.py ./
-COPY binaryninja_mcp/mcp_client.py binaryninja_mcp/
+COPY edb_debugger_mcp.py gdb_backend.py pwntools_mcp.py edb_models.py ./
+COPY binaryninja_mcp/ binaryninja_mcp/
+COPY examples/ examples/
 
 RUN pip install --no-cache-dir .
 

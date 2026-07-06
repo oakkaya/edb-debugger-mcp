@@ -1,6 +1,7 @@
 # EDB Debugger MCP
 
 [![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/oakkaya/edb-debugger-mcp/actions)
+[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)]()
 [![PyPI](https://img.shields.io/pypi/v/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -46,6 +47,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
   - [Standalone](#standalone)
   - [Claude Desktop Integration](#claude-desktop-integration)
   - [Other MCP Hosts](#other-mcp-hosts)
+- [Docker Usage](#docker-usage)
 - [Architecture](#architecture)
 - [pwntools Tools](#pwntools-tools)
 - [EDB Plugin Mapping](#edb-plugin-mapping)
@@ -205,6 +207,30 @@ The same server works with any MCP-compatible host. Example configurations:
 }
 ```
 
+## Docker Usage
+
+A pre-built Docker image is available on [GitHub Container Registry](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp).
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/oakkaya/edb-debugger-mcp:latest
+
+# Run the MCP server (stdio mode, for MCP hosts)
+docker run -i ghcr.io/oakkaya/edb-debugger-mcp
+
+# Run with a specific version tag
+docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.0.9
+
+# Run interactively with a shell for debugging
+docker run --rm -it \
+  --security-opt seccomp=unconfined \
+  --cap-add=SYS_PTRACE \
+  ghcr.io/oakkaya/edb-debugger-mcp /bin/bash
+```
+
+The image is built from `python:3.13-slim` with GDB pre-installed. It
+is automatically rebuilt and published on every GitHub release (`v*` tag).
+
 ## Architecture
 
 ```
@@ -350,7 +376,17 @@ edb-debugger-mcp/
 ├── ghidra_mcp/             # Ghidra bridge (pyhidra-based, same MCP client)
 ├── web_ui/                 # Web debugger frontend (FastAPI + htmx, browser-based)
 ├── x64dbg_mcp/             # x64dbgpy plugin (Windows debugger bridge)
-├── examples/               # CTF challenges (ret2win, format-string, crackme, rop-chain, shellcode-injection)
+├── examples/               # 10 CTF challenges
+│   ├── ret2win/             #   Buffer overflow → call win function
+│   ├── format-string/       #   Format string → GOT overwrite
+│   ├── crackme/             #   Static password analysis
+│   ├── rop-chain/           #   ROP chain ret2libc (NX enabled)
+│   ├── shellcode-injection/ #   Shellcode on executable stack
+│   ├── off-by-one/          #   Off-by-one overwrites adjacent variable
+│   ├── heap-uaf/            #   Use-after-free → function pointer overwrite
+│   ├── integer-overflow/    #   Signed check bypass → OOB write
+│   ├── nx-bypass/           #   ROP mprotect + shellcode
+│   └── canary-leak/         #   Format string leak + BOF with canary
 ├── requirements.txt        # Python dependencies
 ├── README.md               # This file
 ├── LICENSE                 # MIT License

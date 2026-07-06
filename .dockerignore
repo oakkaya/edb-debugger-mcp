@@ -5,13 +5,11 @@ __pycache__
 .gitignore
 .pytest_cache
 docs/
-examples/
 tests/
 ghidra_mcp/
 ida_mcp/
 web_ui/
 x64dbg_mcp/
 vscode-edb-mcp/
-binaryninja_mcp/
 dist/
 *.egg-info
