@@ -355,30 +355,6 @@ Features:
 - **Dark theme** — Clean, readable interface
 - **Live results** — Output streams into the result panel with auto-scroll
 
-## CTF Examples
-
-The `examples/` directory contains 10 CTF-style challenges that showcase different exploitation techniques and the corresponding EDB MCP tools used to solve them.
-
-| Challenge | Technique | Tools Demonstrated |
-|-----------|-----------|-------------------|
-| `ret2win` | Buffer overflow overwrites return address to call a hidden win function | `edb_load_program`, `edb_set_breakpoint`, `edb_get_stack`, `edb_evaluate_expression`, `edb_run` |
-| `format-string` | Format string vulnerability used to overwrite GOT entries | `edb_evaluate_expression`, `edb_write_memory`, `edb_get_string`, `edb_find_strings` |
-| `crackme` | Static password analysis by examining the binary | `edb_disassemble`, `edb_lookup_symbol`, `edb_get_string` |
-| `rop-chain` | Return-Oriented Programming chain to bypass NX (ret2libc) | `edb_find_rop_gadgets`, `edb_get_registers`, `pwntools_build_rop_chain`, `edb_set_memory_permissions` |
-| `shellcode-injection` | Shellcode injection and execution on an executable stack | `pwntools_shellcraft`, `edb_write_memory_bytes`, `edb_set_breakpoint`, `edb_run` |
-| `off-by-one` | Single-byte heap overflow corrupts adjacent variable | `edb_set_breakpoint`, `edb_read_memory`, `edb_get_stack`, `edb_evaluate_expression` |
-| `heap-uaf` | Use-after-free corrupts a function pointer to gain control | `edb_analyze_heap`, `edb_set_breakpoint`, `edb_read_memory`, `edb_write_memory` |
-| `integer-overflow` | Integer overflow bypasses a bounds check leading to OOB write | `edb_evaluate_expression`, `edb_set_breakpoint`, `edb_read_memory`, `edb_set_register` |
-| `nx-bypass` | ROP chain calls mprotect then executes shellcode | `pwntools_find_rop`, `edb_find_rop_gadgets`, `pwntools_shellcraft`, `edb_set_breakpoint` |
-| `canary-leak` | Format string leaks stack canary, then BOF overwrites return address | `edb_get_stack`, `edb_find_strings`, `edb_evaluate_expression`, `edb_set_breakpoint` |
-
-Each challenge includes source code, a compiled binary, and a solve script. Run from the challenge directory:
-
-```bash
-cd examples/ret2win
-python solve.py
-```
-
 ## x64dbg Integration
 
 > **⚠ Experimental / untested** — Windows-only. Requires [x64dbg](https://x64dbg.com/) with [x64dbgpy](https://github.com/x64dbg/x64dbgpy). No test environment available.
@@ -463,6 +439,30 @@ edb-debugger-mcp/
 ├── README.md               # This file
 ├── LICENSE                 # MIT License
 └── .gitignore              # Git ignore rules
+```
+
+## CTF Examples
+
+The `examples/` directory contains 10 CTF-style challenges that showcase different exploitation techniques and the corresponding EDB MCP tools used to solve them.
+
+| Challenge | Technique | Tools Demonstrated |
+|-----------|-----------|-------------------|
+| `ret2win` | Buffer overflow overwrites return address to call a hidden win function | `edb_load_program`, `edb_set_breakpoint`, `edb_get_stack`, `edb_evaluate_expression`, `edb_run` |
+| `format-string` | Format string vulnerability used to overwrite GOT entries | `edb_evaluate_expression`, `edb_write_memory`, `edb_get_string`, `edb_find_strings` |
+| `crackme` | Static password analysis by examining the binary | `edb_disassemble`, `edb_lookup_symbol`, `edb_get_string` |
+| `rop-chain` | Return-Oriented Programming chain to bypass NX (ret2libc) | `edb_find_rop_gadgets`, `edb_get_registers`, `pwntools_build_rop_chain`, `edb_set_memory_permissions` |
+| `shellcode-injection` | Shellcode injection and execution on an executable stack | `pwntools_shellcraft`, `edb_write_memory_bytes`, `edb_set_breakpoint`, `edb_run` |
+| `off-by-one` | Single-byte heap overflow corrupts adjacent variable | `edb_set_breakpoint`, `edb_read_memory`, `edb_get_stack`, `edb_evaluate_expression` |
+| `heap-uaf` | Use-after-free corrupts a function pointer to gain control | `edb_analyze_heap`, `edb_set_breakpoint`, `edb_read_memory`, `edb_write_memory` |
+| `integer-overflow` | Integer overflow bypasses a bounds check leading to OOB write | `edb_evaluate_expression`, `edb_set_breakpoint`, `edb_read_memory`, `edb_set_register` |
+| `nx-bypass` | ROP chain calls mprotect then executes shellcode | `pwntools_find_rop`, `edb_find_rop_gadgets`, `pwntools_shellcraft`, `edb_set_breakpoint` |
+| `canary-leak` | Format string leaks stack canary, then BOF overwrites return address | `edb_get_stack`, `edb_find_strings`, `edb_evaluate_expression`, `edb_set_breakpoint` |
+
+Each challenge includes source code, a compiled binary, and a solve script. Run from the challenge directory:
+
+```bash
+cd examples/ret2win
+python solve.py
 ```
 
 ## Tool Reference (147 tools)
