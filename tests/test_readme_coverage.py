@@ -47,7 +47,7 @@ class TestToolCoverage:
         with open(readme_path) as f:
             readme = f.read()
 
-        expected_count = len(self.edb_tools)
+        expected_count = len(self.tool_names)
         pattern = rf"\*\*{expected_count} debugging tools"
         assert re.search(pattern, readme), (
             f"README does not mention '{expected_count} debugging tools'"
