@@ -4,7 +4,7 @@
 [![PyPI](https://img.shields.io/badge/PyPI-edb--debugger--mcp-blue)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-![EDB Debugger MCP Demo](docs/edb-demo.png)
+![EDB Debugger MCP Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-demo.png)
 
 An MCP (Model Context Protocol) server that provides full EDB (Evan's Debugger) functionality via a GDB MI (Machine Interface) backend. Built with Python and FastMCP, this server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC) that can be used by any MCP-enabled AI assistant or IDE (Claude Desktop, Cursor, etc.).
 
