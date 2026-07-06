@@ -11,8 +11,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/YOUR_USERNAME/edb-debugger-mcp"
-Repository = "https://github.com/YOUR_USERNAME/edb-debugger-mcp"
+Homepage = "https://github.com/oakkaya/edb-debugger-mcp"
+Repository = "https://github.com/oakkaya/edb-debugger-mcp"
+Documentation = "https://github.com/oakkaya/edb-debugger-mcp#readme"
+Issues = "https://github.com/oakkaya/edb-debugger-mcp/issues"
 
 [tool.mcp]
 name = "edb_debugger_mcp"
