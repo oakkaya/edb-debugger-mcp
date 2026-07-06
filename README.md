@@ -8,13 +8,13 @@
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
 <p align="center">
-  <em>Workflow demo — load, disassemble, ROP, breakpoint, run, registers, stack, backtrace, shellcode. Tek bir oturumda tam bir reverse engineering akışı.</em><br>
-  <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%">
+  <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%"><br>
+  <em>Complete RE workflow: load binary → disassemble → ROP search → set breakpoint → run → read registers → dump stack → backtrace → generate shellcode.</em>
 </p>
 
 <p align="center">
-  <em>Split-screen demo — her tool çağrısının argümanları ve dönen sonuçları yan yana. Hangi tool'un ne yaptığını ve ne döndürdüğünü aynı anda gösterir.</em><br>
-  <img alt="Split-Screen Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif" width="90%">
+  <img alt="Split-Screen Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif" width="90%"><br>
+  <em>Tool call arguments and their structured results displayed side by side for clarity.</em>
 </p>
 
 ## About
