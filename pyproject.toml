@@ -1,9 +1,25 @@
 [project]
 name = "edb-debugger-mcp"
-version = "1.0.4"
+version = "1.0.5"
 description = "EDB Debugger MCP — 147 debugging tools for AI-assisted reverse engineering via GDB MI backend. pwntools + Binary Ninja integration."
 readme = "README.md"
 license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Security",
+    "Topic :: Software Development :: Debuggers",
+    "Topic :: System :: Archiving :: Packaging",
+]
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",

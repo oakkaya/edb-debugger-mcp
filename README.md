@@ -1,9 +1,9 @@
 # EDB Debugger MCP
 
 [![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/oakkaya/edb-debugger-mcp/actions)
-[![PyPI](https://img.shields.io/badge/PyPI-edb--debugger--mcp-blue)](https://pypi.org/project/edb-debugger-mcp/)
+[![PyPI](https://img.shields.io/pypi/v/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
+[![Python](https://img.shields.io/pypi/pyversions/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.10+-blue)](https://www.python.org/)
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
@@ -269,6 +269,8 @@ Usage: ask the AI "Find ROP gadgets with pop rdi" or "Generate x64 execve shellc
 | **DebuggerErrorConsole** | edb_set_debug_output |
 
 ## Binary Ninja Integration
+
+> **⚠ Experimental / untested** — Binary Ninja is a commercial product (not available in this environment). The plugin code is structurally complete and follows the BN plugin API, but has not been verified at runtime. PRs welcome.
 
 The `binaryninja_mcp/` directory contains a full Binary Ninja plugin that bridges the decompiler with the live debugger. Features:
 - **Register overlay** — HLIL comments with live register values
