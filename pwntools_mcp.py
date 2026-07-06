@@ -276,8 +276,9 @@ async def pwntools_shellcraft(params: ShellcodeParams) -> str:
         ]
         for line in asm_lines.split("\n")[:20]:
             result.append(f"    {line}")
-        if len(asm_lines.split("\n")) > 20:
-            result.append(f"    ... ({len(asm_lines.split('\n')) - 20} more lines)")
+        remaining = len(asm_lines.split("\n")) - 20
+        if remaining > 0:
+            result.append(f"    ... ({remaining} more lines)")
 
         result.append("")
         result.append(f"  C-array: unsigned char code[] = {{\" \\\n    {' '.join(f'\\\\x{b:02x}' for b in code)}\"}};")

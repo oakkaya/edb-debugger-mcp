@@ -54,7 +54,10 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [Binary Ninja Integration](#binary-ninja-integration)
 - [Ghidra Integration](#ghidra-integration)
 - [Web UI](#web-ui)
+- [CTF Examples](#ctf-examples)
 - [x64dbg Integration](#x64dbg-integration)
+- [IDA Pro Integration](#ida-pro-integration)
+- [VS Code Extension](#vs-code-extension)
 - [Project Structure](#project-structure)
 - [Tool Reference](#tool-reference-147-tools)
 - [License](#license)
@@ -352,6 +355,30 @@ Features:
 - **Dark theme** — Clean, readable interface
 - **Live results** — Output streams into the result panel with auto-scroll
 
+## CTF Examples
+
+The `examples/` directory contains 10 CTF-style challenges that showcase different exploitation techniques and the corresponding EDB MCP tools used to solve them.
+
+| Challenge | Technique | Tools Demonstrated |
+|-----------|-----------|-------------------|
+| `ret2win` | Buffer overflow overwrites return address to call a hidden win function | `edb_load_program`, `edb_set_breakpoint`, `edb_get_stack`, `edb_evaluate_expression`, `edb_run` |
+| `format-string` | Format string vulnerability used to overwrite GOT entries | `edb_evaluate_expression`, `edb_write_memory`, `edb_get_string`, `edb_find_strings` |
+| `crackme` | Static password analysis by examining the binary | `edb_disassemble`, `edb_lookup_symbol`, `edb_get_string` |
+| `rop-chain` | Return-Oriented Programming chain to bypass NX (ret2libc) | `edb_find_rop_gadgets`, `edb_get_registers`, `pwntools_build_rop_chain`, `edb_set_memory_permissions` |
+| `shellcode-injection` | Shellcode injection and execution on an executable stack | `pwntools_shellcraft`, `edb_write_memory_bytes`, `edb_set_breakpoint`, `edb_run` |
+| `off-by-one` | Single-byte heap overflow corrupts adjacent variable | `edb_set_breakpoint`, `edb_read_memory`, `edb_get_stack`, `edb_evaluate_expression` |
+| `heap-uaf` | Use-after-free corrupts a function pointer to gain control | `edb_analyze_heap`, `edb_set_breakpoint`, `edb_read_memory`, `edb_write_memory` |
+| `integer-overflow` | Integer overflow bypasses a bounds check leading to OOB write | `edb_evaluate_expression`, `edb_set_breakpoint`, `edb_read_memory`, `edb_set_register` |
+| `nx-bypass` | ROP chain calls mprotect then executes shellcode | `pwntools_find_rop`, `edb_find_rop_gadgets`, `pwntools_shellcraft`, `edb_set_breakpoint` |
+| `canary-leak` | Format string leaks stack canary, then BOF overwrites return address | `edb_get_stack`, `edb_find_strings`, `edb_evaluate_expression`, `edb_set_breakpoint` |
+
+Each challenge includes source code, a compiled binary, and a solve script. Run from the challenge directory:
+
+```bash
+cd examples/ret2win
+python solve.py
+```
+
 ## x64dbg Integration
 
 > **⚠ Experimental / untested** — Windows-only. Requires [x64dbg](https://x64dbg.com/) with [x64dbgpy](https://github.com/x64dbg/x64dbgpy). No test environment available.
@@ -365,6 +392,49 @@ The `x64dbg_mcp/` directory contains an x64dbgpy plugin. Features:
 
 Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge" submenu appears under Plugins.
 
+## IDA Pro Integration
+
+> **⚠ Experimental / untested** — no IDA Pro license available for testing. PRs welcome.
+
+The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
+- **Start/Stop Bridge** — Launch and terminate the MCP subprocess
+- **Toggle Breakpoint** (F2) — Set/remove software breakpoint at cursor
+- **Clear All Breakpoints** — Remove all breakpoints
+- **Patching** — NOP or assemble instruction at current address
+- **Step/run control** — Step into (F11), step over (F10), step out (Shift+F11), run (F5), pause
+- **Inspection** — Show register values, read memory at cursor
+
+Install: copy `ida_mcp/` to IDA's plugin directory:
+
+```bash
+cp -r ida_mcp ~/.idapro/plugins/edb_debugger_bridge
+```
+
+After starting the bridge (Edit -> EDB Debugger -> Start Bridge), all actions are available from the **Edit -> EDB Debugger** menu.
+
+## VS Code Extension
+
+> **⚠ Experimental**
+
+The `vscode-edb-mcp/` directory contains a VS Code extension that provides a debugger frontend inside VS Code. Features:
+- **Start/Stop Bridge** — Spawn and kill the MCP subprocess
+- **Debugger Panel** — WebView panel for debugging commands
+- **Execution control** — Run/continue (F5), pause, step into (F11), step over (F10)
+- **Breakpoint management** — Set/clear breakpoints
+- **Register/Memory inspection** — View register state and memory
+- **Status bar indicator** — Shows bridge connection state (connected/disconnected)
+
+Build and install:
+
+```bash
+cd vscode-edb-mcp
+npm install
+npm run compile
+code --install-extension edb-debugger-mcp-1.0.0.vsix
+```
+
+The extension registers commands under the `EDB:` prefix and shows a status bar item.
+
 ## Project Structure
 
 ```
@@ -374,8 +444,10 @@ edb-debugger-mcp/
 ├── pwntools_mcp.py         # Pwntools integration (12 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr)
 ├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
 ├── ghidra_mcp/             # Ghidra bridge (pyhidra-based, same MCP client)
+├── ida_mcp/                # IDA Pro plugin (IDAPython bridge with breakpoint/patch/step)
 ├── web_ui/                 # Web debugger frontend (FastAPI + htmx, browser-based)
 ├── x64dbg_mcp/             # x64dbgpy plugin (Windows debugger bridge)
+├── vscode-edb-mcp/         # VS Code extension (debugger panel, commands, status bar)
 ├── examples/               # 10 CTF challenges
 │   ├── ret2win/             #   Buffer overflow → call win function
 │   ├── format-string/       #   Format string → GOT overwrite
