@@ -1,0 +1,8 @@
+{
+  "name": "EDB Debugger Bridge",
+  "description": "Connect Ghidra to the edb_debugger_mcp GDB MI backend via MCP protocol.",
+  "version": "1.0.0",
+  "author": "oakkaya",
+  "license": "MIT",
+  "url": "https://github.com/oakkaya/edb-debugger-mcp"
+}

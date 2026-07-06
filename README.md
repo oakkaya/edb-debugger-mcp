@@ -48,6 +48,9 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [pwntools Tools](#pwntools-tools)
 - [EDB Plugin Mapping](#edb-plugin-mapping)
 - [Binary Ninja Integration](#binary-ninja-integration)
+- [Ghidra Integration](#ghidra-integration)
+- [Web UI](#web-ui)
+- [x64dbg Integration](#x64dbg-integration)
 - [Project Structure](#project-structure)
 - [Tool Reference](#tool-reference-147-tools)
 - [License](#license)
@@ -289,6 +292,51 @@ The `binaryninja_mcp/` directory contains a full Binary Ninja plugin that bridge
 
 Install: `ln -s $(pwd)/binaryninja_mcp ~/.binaryninja/plugins/edb-debugger-bridge`
 
+## Ghidra Integration
+
+> **⚠ Experimental / untested** — Requires [pyhidra](https://github.com/NationalSecurityAgency/pyhidra). Plugin is structurally complete but not verified at runtime. PRs welcome.
+
+The `ghidra_mcp/` directory contains a Ghidra Python bridge that follows the same pattern as BN. Features:
+- **Start/Stop Bridge** — Connect/disconnect from the MCP server
+- **Toggle Breakpoint** — Set/clear breakpoints at the cursor address
+- **In-place patching** — NOP, assemble instructions
+- **Step/run control** — Step into/over, run, pause
+- **Register & memory inspection** — Live register values, memory hex dump
+
+Install: in Ghidra with pyhidra, run `ghidra_mcp/ghidra_bridge.py` via the Python interpreter, then use the newly registered actions from the right-click menu.
+
+## Web UI
+
+> **⚠ Experimental**
+
+The `web_ui/` directory provides a browser-based debugger frontend using FastAPI + htmx. No JS framework required.
+
+```
+cd web_ui
+pip install -r requirements.txt
+python server.py
+# → http://localhost:8000
+```
+
+Features:
+- **Categorized tool sidebar** — Program, Breakpoints, Run/Step, Registers/Memory, Analysis, Pwntools
+- **Dynamic parameter forms** — Tools with arguments show input fields auto-generated from the tool schema
+- **Dark theme** — Clean, readable interface
+- **Live results** — Output streams into the result panel with auto-scroll
+
+## x64dbg Integration
+
+> **⚠ Experimental / untested** — Windows-only. Requires [x64dbg](https://x64dbg.com/) with [x64dbgpy](https://github.com/x64dbg/x64dbgpy). No test environment available.
+
+The `x64dbg_mcp/` directory contains an x64dbgpy plugin. Features:
+- **Start/Stop Bridge** — Connect to the MCP server
+- **Breakpoint control** — Toggle, clear all
+- **Patching** — NOP, assemble at cursor
+- **Step/run** — Step into/over, run, pause
+- **Inspection** — Registers, memory at selection
+
+Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge" submenu appears under Plugins.
+
 ## Project Structure
 
 ```
@@ -297,7 +345,10 @@ edb-debugger-mcp/
 ├── edb_debugger_mcp.py     # FastMCP server (135 edb_ tools, 83 Pydantic models)
 ├── pwntools_mcp.py         # Pwntools integration (12 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr)
 ├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
-├── pyproject.toml          # Project configuration
+├── ghidra_mcp/             # Ghidra bridge (pyhidra-based, same MCP client)
+├── web_ui/                 # Web debugger frontend (FastAPI + htmx, browser-based)
+├── x64dbg_mcp/             # x64dbgpy plugin (Windows debugger bridge)
+├── examples/               # CTF challenges (ret2win, format-string, crackme, rop-chain, shellcode-injection)
 ├── requirements.txt        # Python dependencies
 ├── README.md               # This file
 ├── LICENSE                 # MIT License
