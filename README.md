@@ -35,11 +35,11 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [Usage](#usage)
   - [Standalone](#standalone)
   - [Claude Desktop Integration](#claude-desktop-integration)
-- [Tool Reference](#tool-reference)
 - [Architecture](#architecture)
 - [EDB Plugin Mapping](#edb-plugin-mapping)
 - [Binary Ninja Integration](#binary-ninja-integration)
 - [Project Structure](#project-structure)
+- [Tool Reference](#tool-reference-147-tools)
 - [License](#license)
 
 ## Quick Start
@@ -151,7 +151,91 @@ Config file location:
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
-## Tool Reference
+## Architecture
+
+```
+┌─────────────────────┐     MCP Protocol      ┌──────────────────────┐
+│   MCP Client        │ ◄──────────────────►  │   FastMCP Server     │
+│ (Claude, Cursor)    │     stdio JSON-RPC    │   edb_debugger_mcp.py│
+└─────────────────────┘                       └──────────┬───────────┘
+                                                          │
+                                                      GDB MI
+                                                   (--interpreter=mi2)
+                                                          │
+                                                 ┌────────┴───────────┐
+                                                 │   GDB Backend      │
+                                                 │   gdb_backend.py   │
+                                                 │  (async subprocess)│
+                                                 │  MI parser + 123   │
+                                                 │  public methods    │
+                                                 └────────────────────┘
+```
+
+The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to communicate with GDB as a subprocess. The backend:
+- Sends MI/CLI commands via stdin, parses structured MI responses
+- Handles `*stopped` async events for breakpoint hits
+- Manages process lifecycle (start, kill, detach)
+- Provides `readelf`-based file offset ↔ VA conversion
+
+> **Note:** The EDB action/dialog/view counts listed in this README cover all of EDB's UI elements. Since this project is an MCP server, **UI-only features** (About dialog, font selector, Reset UI, window layout) cannot be mapped. All **functional debugging capabilities** (breakpoint, register, memory, stack, thread, expression, patching, analysis, ROP, session) are 100% covered.
+
+## EDB Plugin Mapping
+
+| Plugin | MCP Coverage |
+|--------|-------------|
+| **DebuggerCore** | Execution, stepping, breakpoints, registers, memory, state |
+| **BreakpointManager** | edb_set_breakpoint, edb_list_breakpoints, edb_export/import |
+| **HardwareBreakpoints** | edb_set_hardware_breakpoint, edb_set_watchpoint |
+| **InstructionInspector** | edb_instruction_detail |
+| **Assembler** | edb_assemble (Keystone optional) |
+| **BinaryInfo** | edb_get_binary_info |
+| **BinarySearcher** | edb_search_memory |
+| **Backtrace** | edb_get_backtrace |
+| **FasLoader** | edb_load_symbol_file |
+| **DumpState** | edb_dump_state |
+| **FunctionFinder** | edb_list_functions |
+| **OpcodeSearcher** | edb_search_instructions |
+| **References** | edb_find_references, edb_string_references |
+| **ROPTool** | edb_find_rop_gadgets |
+| **HeapAnalyzer** | edb_analyze_heap |
+| **Analyzer** | edb_analyze_region, edb_analyze_basic_blocks |
+| **SymbolViewer** | edb_lookup_symbol |
+| **ProcessProperties** | edb_get_process_properties |
+| **ODbgRegisterView** | edb_get_registers, edb_get_fpu_state, edb_get_simd_state |
+| **Bookmarks** | edb_add_bookmark, edb_list_bookmarks, edb_remove_bookmark |
+| **CheckVersion** | Automatically handled |
+| **DebuggerErrorConsole** | edb_set_debug_output |
+
+## Binary Ninja Integration
+
+The `binaryninja_mcp/` directory contains a full Binary Ninja plugin that bridges the decompiler with the live debugger. Features:
+- **Register overlay** — HLIL comments with live register values
+- **Single-click breakpoints** — Right-click to toggle software/hardware breakpoints
+- **In-place patching** — NOP, assemble, range-NOP from the disassembly context menu
+- **Step control** — Step into/over/out, run, pause via Plugins menu
+- **Sidebar widget** — Live register summary in the "EDB Debugger" tab
+
+Install: `ln -s $(pwd)/binaryninja_mcp ~/.binaryninja/plugins/edb-debugger-bridge`
+
+## Project Structure
+
+```
+edb-debugger-mcp/
+├── gdb_backend.py          # GDB MI backend (123 public methods, MI parser, session mgmt)
+├── edb_debugger_mcp.py     # FastMCP server (135 edb_ tools, 83 Pydantic models)
+├── pwntools_mcp.py         # Pwntools integration (12 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr)
+├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
+├── pyproject.toml          # Project configuration
+├── requirements.txt        # Python dependencies
+├── README.md               # This file
+├── LICENSE                 # MIT License
+└── .gitignore              # Git ignore rules
+```
+
+## Tool Reference (147 tools)
+
+<details>
+<summary>Click to expand the full tool reference (17 categories, 147 tools)</summary>
 
 ### Program Control (12 tools)
 
@@ -363,86 +447,7 @@ Config file location:
 | `edb_va_to_file_offset` | Convert virtual address to file offset |
 | `edb_file_offset_to_va` | Convert file offset to virtual address |
 
-## Architecture
-
-```
-┌─────────────────────┐     MCP Protocol      ┌──────────────────────┐
-│   MCP Client        │ ◄──────────────────►  │   FastMCP Server     │
-│ (Claude, Cursor)    │     stdio JSON-RPC    │   edb_debugger_mcp.py│
-└─────────────────────┘                       └──────────┬───────────┘
-                                                          │
-                                                      GDB MI
-                                                   (--interpreter=mi2)
-                                                          │
-                                                 ┌────────┴───────────┐
-                                                 │   GDB Backend      │
-                                                 │   gdb_backend.py   │
-                                                 │  (async subprocess)│
-                                                 │  MI parser + 123   │
-                                                 │  public methods    │
-                                                 └────────────────────┘
-```
-
-The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to communicate with GDB as a subprocess. The backend:
-- Sends MI/CLI commands via stdin, parses structured MI responses
-- Handles `*stopped` async events for breakpoint hits
-- Manages process lifecycle (start, kill, detach)
-- Provides `readelf`-based file offset ↔ VA conversion
-
-> **Note:** The EDB action/dialog/view counts listed in this README cover all of EDB's UI elements. Since this project is an MCP server, **UI-only features** (About dialog, font selector, Reset UI, window layout) cannot be mapped. All **functional debugging capabilities** (breakpoint, register, memory, stack, thread, expression, patching, analysis, ROP, session) are 100% covered.
-
-## EDB Plugin Mapping
-
-| Plugin | MCP Coverage |
-|--------|-------------|
-| **DebuggerCore** | Execution, stepping, breakpoints, registers, memory, state |
-| **BreakpointManager** | edb_set_breakpoint, edb_list_breakpoints, edb_export/import |
-| **HardwareBreakpoints** | edb_set_hardware_breakpoint, edb_set_watchpoint |
-| **InstructionInspector** | edb_instruction_detail |
-| **Assembler** | edb_assemble (Keystone optional) |
-| **BinaryInfo** | edb_get_binary_info |
-| **BinarySearcher** | edb_search_memory |
-| **Backtrace** | edb_get_backtrace |
-| **FasLoader** | edb_load_symbol_file |
-| **DumpState** | edb_dump_state |
-| **FunctionFinder** | edb_list_functions |
-| **OpcodeSearcher** | edb_search_instructions |
-| **References** | edb_find_references, edb_string_references |
-| **ROPTool** | edb_find_rop_gadgets |
-| **HeapAnalyzer** | edb_analyze_heap |
-| **Analyzer** | edb_analyze_region, edb_analyze_basic_blocks |
-| **SymbolViewer** | edb_lookup_symbol |
-| **ProcessProperties** | edb_get_process_properties |
-| **ODbgRegisterView** | edb_get_registers, edb_get_fpu_state, edb_get_simd_state |
-| **Bookmarks** | edb_add_bookmark, edb_list_bookmarks, edb_remove_bookmark |
-| **CheckVersion** | Automatically handled |
-| **DebuggerErrorConsole** | edb_set_debug_output |
-
-## Binary Ninja Integration
-
-The `binaryninja_mcp/` directory contains a full Binary Ninja plugin that bridges the decompiler with the live debugger. Features:
-- **Register overlay** — HLIL comments with live register values
-- **Single-click breakpoints** — Right-click to toggle software/hardware breakpoints
-- **In-place patching** — NOP, assemble, range-NOP from the disassembly context menu
-- **Step control** — Step into/over/out, run, pause via Plugins menu
-- **Sidebar widget** — Live register summary in the "EDB Debugger" tab
-
-Install: `ln -s $(pwd)/binaryninja_mcp ~/.binaryninja/plugins/edb-debugger-bridge`
-
-## Project Structure
-
-```
-edb-debugger-mcp/
-├── gdb_backend.py          # GDB MI backend (123 public methods, MI parser, session mgmt)
-├── edb_debugger_mcp.py     # FastMCP server (135 edb_ tools, 83 Pydantic models)
-├── pwntools_mcp.py         # Pwntools integration (12 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr)
-├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
-├── pyproject.toml          # Project configuration
-├── requirements.txt        # Python dependencies
-├── README.md               # This file
-├── LICENSE                 # MIT License
-└── .gitignore              # Git ignore rules
-```
+</details>
 
 ## License
 
