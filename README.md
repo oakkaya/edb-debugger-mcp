@@ -7,6 +7,14 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
+## About
+
+[EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
+
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
+
+Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
+
 <p align="center">
   <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%"><br>
   <em>Complete RE workflow: load binary → disassemble → ROP search → set breakpoint → run → read registers → dump stack → backtrace → generate shellcode.</em>
@@ -17,13 +25,6 @@
   <em>Tool call arguments and their structured results displayed side by side for clarity.</em>
 </p>
 
-## About
-
-[EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
-
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **147 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
-
-Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
 
 | Stat | Value |
 |------|-------|
@@ -294,7 +295,7 @@ Install: `ln -s $(pwd)/binaryninja_mcp ~/.binaryninja/plugins/edb-debugger-bridg
 
 ## Ghidra Integration
 
-> **⚠ Experimental / untested** — Requires [pyhidra](https://github.com/NationalSecurityAgency/pyhidra). Plugin is structurally complete but not verified at runtime. PRs welcome.
+> **⚠ Experimental / untested** — Requires [pyhidra](https://github.com/Defense-Cyber-Crime-Center/pyhidra). Plugin is structurally complete but not verified at runtime. PRs welcome.
 
 The `ghidra_mcp/` directory contains a Ghidra Python bridge that follows the same pattern as BN. Features:
 - **Start/Stop Bridge** — Connect/disconnect from the MCP server

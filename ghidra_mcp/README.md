@@ -13,7 +13,7 @@ Live debugger integration that connects **Ghidra** to **edb_debugger_mcp** (GDB 
 ## Requirements
 
 - [Ghidra](https://ghidra-sre.org/) ≥ 10.x
-- [pyhidra](https://github.com/dod-cyber-crime-institute/pyhidra) — Python bridge for Ghidra
+- [pyhidra](https://github.com/Defense-Cyber-Crime-Center/pyhidra) — Python bridge for Ghidra
 - [edb_debugger_mcp](https://github.com/oakkaya/edb-debugger-mcp) (included)
 - GDB (GNU Debugger) on `$PATH`
 

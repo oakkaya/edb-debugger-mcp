@@ -1,0 +1,30 @@
+{
+  "name": "edb-debugger-mcp",
+  "displayName": "EDB Debugger MCP",
+  "description": "AI-powered debugger for VS Code — 147 tools via GDB MI backend",
+  "version": "1.0.0",
+  "publisher": "oakkaya",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Debuggers", "Programming Languages"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      { "command": "edb-debugger-mcp.start", "title": "EDB: Start Bridge" },
+      { "command": "edb-debugger-mcp.stop", "title": "EDB: Stop Bridge" },
+      { "command": "edb-debugger-mcp.showPanel", "title": "EDB: Show Debugger Panel" },
+      { "command": "edb-debugger-mcp.loadBinary", "title": "EDB: Load Binary" },
+      { "command": "edb-debugger-mcp.run", "title": "EDB: Run / Continue" },
+      { "command": "edb-debugger-mcp.pause", "title": "EDB: Pause" },
+      { "command": "edb-debugger-mcp.stepInto", "title": "EDB: Step Into" },
+      { "command": "edb-debugger-mcp.stepOver", "title": "EDB: Step Over" },
+      { "command": "edb-debugger-mcp.showRegisters", "title": "EDB: Show Registers" }
+    ],
+    "keybindings": [
+      { "key": "f5", "command": "edb-debugger-mcp.run", "when": "editorTextFocus" },
+      { "key": "f10", "command": "edb-debugger-mcp.stepOver", "when": "editorTextFocus" },
+      { "key": "f11", "command": "edb-debugger-mcp.stepInto", "when": "editorTextFocus" }
+    ]
+  }
+}
