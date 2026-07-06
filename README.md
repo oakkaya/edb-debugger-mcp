@@ -7,9 +7,15 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 
-![EDB Debugger MCP — Workflow Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif)
+<p align="center">
+  <em>Workflow demo — load, disassemble, ROP, breakpoint, run, registers, stack, backtrace, shellcode. Tek bir oturumda tam bir reverse engineering akışı.</em><br>
+  <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%">
+</p>
 
-![EDB Debugger MCP — Split-Screen Demo](https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif)
+<p align="center">
+  <em>Split-screen demo — her tool çağrısının argümanları ve dönen sonuçları yan yana. Hangi tool'un ne yaptığını ve ne döndürdüğünü aynı anda gösterir.</em><br>
+  <img alt="Split-Screen Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif" width="90%">
+</p>
 
 ## About
 
