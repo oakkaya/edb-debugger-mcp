@@ -281,7 +281,8 @@ async def pwntools_shellcraft(params: ShellcodeParams) -> str:
             result.append(f"    ... ({remaining} more lines)")
 
         result.append("")
-        result.append(f"  C-array: unsigned char code[] = {{\" \\\n    {' '.join(f'\\\\x{b:02x}' for b in code)}\"}};")
+        hex_bytes = " ".join(f"\\x{b:02x}" for b in code)
+        result.append(f'  C-array: unsigned char code[] = {{" \\\n    {hex_bytes}"}};')
         return "\n".join(result)
     except Exception as e:
         return f"Error: {e}"
