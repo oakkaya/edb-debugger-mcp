@@ -35,7 +35,9 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [Usage](#usage)
   - [Standalone](#standalone)
   - [Claude Desktop Integration](#claude-desktop-integration)
+  - [Other MCP Hosts](#other-mcp-hosts)
 - [Architecture](#architecture)
+- [pwntools Tools](#pwntools-tools)
 - [EDB Plugin Mapping](#edb-plugin-mapping)
 - [Binary Ninja Integration](#binary-ninja-integration)
 - [Project Structure](#project-structure)
@@ -151,6 +153,45 @@ Config file location:
 - **Linux**: `~/.config/Claude/claude_desktop_config.json`
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 
+### Other MCP Hosts
+
+The same server works with any MCP-compatible host. Example configurations:
+
+**opencode** (`~/.config/opencode/config.json`):
+```json
+{
+  "mcpServers": {
+    "edb-debugger-mcp": {
+      "command": "edb-debugger-mcp"
+    }
+  }
+}
+```
+
+**Cursor** (Project Settings → MCP Servers):
+```json
+{
+  "mcpServers": {
+    "edb-debugger-mcp": {
+      "command": "edb-debugger-mcp"
+    }
+  }
+}
+```
+
+**Continue.dev** (`~/.continue/config.json`):
+```json
+{
+  "experimental": {
+    "mcpServers": {
+      "edb-debugger-mcp": {
+        "command": "edb-debugger-mcp"
+      }
+    }
+  }
+}
+```
+
 ## Architecture
 
 ```
@@ -178,6 +219,27 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 - Provides `readelf`-based file offset ↔ VA conversion
 
 > **Note:** The EDB action/dialog/view counts listed in this README cover all of EDB's UI elements. Since this project is an MCP server, **UI-only features** (About dialog, font selector, Reset UI, window layout) cannot be mapped. All **functional debugging capabilities** (breakpoint, register, memory, stack, thread, expression, patching, analysis, ROP, session) are 100% covered.
+
+## pwntools Tools
+
+The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 12 MCP tools callable alongside the EDB debugger tools.
+
+| Tool | Description |
+|------|-------------|
+| `pwntools_analyze_elf` | Full ELF binary analysis (headers, sections, symbols, security, strings) |
+| `pwntools_find_rop` | Search for ROP gadgets by regex |
+| `pwntools_build_rop_chain` | Build a ROP chain with ordered gadgets |
+| `pwntools_shellcraft` | Generate shellcode for a given arch/OS (execve, bind/rev shell, etc.) |
+| `pwntools_cyclic` | Generate De Bruijn cyclic pattern for offset discovery |
+| `pwntools_cyclic_find` | Find offset of a value in cyclic pattern |
+| `pwntools_pack` | Pack integer to bytes (little/big endian, 8/16/32/64-bit) |
+| `pwntools_unpack` | Unpack bytes to integer |
+| `pwntools_disasm_bytes` | Disassemble raw bytes with pwntools (architecture-aware) |
+| `pwntools_asm_instructions` | Assemble assembly instructions to bytes |
+| `pwntools_fmtstr_payload` | Generate format string write payload |
+| `pwntools_hexdump_data` | Hex dump with ASCII side (colored, offset-labeled) |
+
+Usage: ask the AI "Find ROP gadgets with pop rdi" or "Generate x64 execve shellcode" — no separate setup needed.
 
 ## EDB Plugin Mapping
 
