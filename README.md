@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
+[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
 
 ## About
 
