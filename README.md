@@ -13,9 +13,9 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **184 debugging tools** (93 Pydantic models, 172 backend methods, ~7000 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **197 debugging tools** (93 Pydantic models, 172 backend methods, ~8000 LOC).
 
-Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (37 tools: ROP, shellcode, cyclic, ELF, pack, enhex, align, bitops), it becomes a complete AI-powered reverse engineering workstation.
+Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (50 tools: ROP, shellcode, cyclic, ELF, pack, enhex, align, bitops, tubes), it becomes a complete AI-powered reverse engineering workstation.
 
 <p align="center">
   <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%"><br>
@@ -30,9 +30,9 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 
 | Stat | Value |
 |------|-------|
-| Total tools | **184** (147 edb_ + 37 pwntools_) |
+| Total tools | **197** (147 edb_ + 50 pwntools_) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
-| Code size | ~7000 LOC · 93 Pydantic models · 123 backend methods |
+| Code size | ~8000 LOC · 93 Pydantic models · 123 backend methods |
 
 [EDB](https://github.com/eteran/edb-debugger) · [GDB](https://www.sourceware.org/gdb/) · [MCP](https://modelcontextprotocol.io) · [FastMCP](https://github.com/jlowin/fastmcp) · [pwntools](https://github.com/Gallopsled/pwntools) · [Binary Ninja](https://binary.ninja/)
 
@@ -59,7 +59,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [IDA Pro Integration](#ida-pro-integration)
 - [VS Code Extension](#vs-code-extension)
 - [Project Structure](#project-structure)
-- [Tool Reference](#tool-reference-184-tools)
+- [Tool Reference](#tool-reference-197-tools)
 - [License](#license)
 
 ## Quick Start
@@ -418,7 +418,7 @@ AI:    → edb_run(args=$(python3 -c "print('A'*136 + '\xb6\x11\x40')"))
 
 ## IDA Pro Integration
 
-> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 184 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
+> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 197 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
 
 The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
 - **Start/Stop Bridge** — Launch and terminate the MCP subprocess
@@ -469,7 +469,7 @@ edb-debugger-mcp/
 │   └── tools.py               # All 147 @mcp.tool function definitions
 ├── gdb_backend.py             # GDB MI backend (172 public methods, MI parser, session mgmt)
 ├── edb_models.py              # 93+ Pydantic models for tool parameters
-├── pwntools_mcp.py            # Pwntools integration (37 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, pack, enhex/unhex, align, rol/ror)
+├── pwntools_mcp.py            # Pwntools integration (50 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, pack, tubes, enhex, elf_diff, bits, context)
 ├── web_ui/                    # Web debugger frontend (FastAPI + htmx, browser-based)
 │   ├── server.py              # FastAPI app, tool categories, multi-page routing
 │   └── templates/             # Jinja2 HTML templates
@@ -522,11 +522,10 @@ cd examples/ret2win
 python solve.py
 ```
 
-## Tool Reference (184 tools)
+## Tool Reference (197 tools)
 
 <details>
-<summary>Click to expand the full tool reference (16 categories, 184 tools)</summary>
-
+<summary>Click to expand the full tool reference (16 categories, 197 tools)</summary>
 
 ### Program Control (12 tools)
 
@@ -750,20 +749,23 @@ python solve.py
 | `edb_va_to_file_offset` | Convert a virtual address in the loaded process to the corresponding |
 | `edb_file_offset_to_va` | Convert a file offset from the binary on disk to the corresponding |
 
-### pwntools (37 tools)
+### pwntools (50 tools)
 
 | Tool | Description |
 |------|-------------|
 | `pwntools_align` | Calculate aligned value (up/down) for a given alignment boundary. |
 | `pwntools_analyze_elf` | Analyze an ELF binary using pwntools — entry point, PIE/NX/RELRO/Canary, section |
 | `pwntools_asm` | Assemble assembly instructions into hex bytes using pwntools + keystone. |
+| `pwntools_bits` | Get or set a specific bit in an integer. |
 | `pwntools_build_rop_chain` | Build a ROP chain to call a target function with arguments using pwntools ROP. |
 | `pwntools_checksec` | Check security properties of an ELF binary: RELRO, Canary, NX, PIE, RPATH/RUNPAT |
 | `pwntools_constgrep` | Search pwntools/ELF constants by name or value. |
+| `pwntools_context` | View or modify pwntools global context (arch, os, endian, log_level). |
 | `pwntools_cyclic` | Generate a cyclic pattern for buffer overflow offset discovery. |
 | `pwntools_cyclic_find` | Find the offset of a value within a cyclic pattern. |
 | `pwntools_disasm` | Disassemble raw hex bytes into assembly instructions using pwntools + capstone. |
 | `pwntools_elf_deps` | List shared library dependencies of an ELF binary (DT_NEEDED entries). |
+| `pwntools_elf_diff` | Compare two ELF binaries: sections, segments, symbols. |
 | `pwntools_elf_got` | Parse Global Offset Table (GOT) entries from an ELF binary. |
 | `pwntools_elf_notes` | Show ELF notes: build ID, ABI tag, property notes. |
 | `pwntools_elf_patch` | Patch bytes in an ELF binary at a given file offset. Creates a backup. |
@@ -783,16 +785,26 @@ python solve.py
 | `pwntools_flat` | Pack a list of values/addresses into flat bytes using pwntools flat(). |
 | `pwntools_fmtstr_payload` | Generate a format string exploit payload for arbitrary writes. |
 | `pwntools_hexdump` | Display a formatted hex dump using pwntools hexdump styling. |
+| `pwntools_log_level` | Set pwntools log verbosity. Levels: debug, info, warning, error. |
 | `pwntools_make_elf` | Compile assembly code into an ELF binary using pwntools make_elf. |
 | `pwntools_pack` | Pack an integer into bytes (e.g., p64, p32, p16). |
+| `pwntools_process` | Start a local process for interaction (pwntools tube). |
+| `pwntools_remote` | Connect to a remote TCP service (pwntools tube). |
 | `pwntools_rol` | Rotate an integer value left by N bits. |
 | `pwntools_ror` | Rotate an integer value right by N bits. |
 | `pwntools_shellcraft` | Generate shellcode using pwntools shellcraft module. |
 | `pwntools_sigreturn` | Generate a Sigreturn-Oriented Programming (SROP) frame using pwntools SigreturnF |
+| `pwntools_tube_close` | Close an active tube connection. |
+| `pwntools_tube_list` | List all active tube connections. |
+| `pwntools_tube_recv` | Receive data from an active tube. |
+| `pwntools_tube_recvline` | Receive a single line from an active tube. |
+| `pwntools_tube_recvuntil` | Receive data from a tube until a pattern is found. |
+| `pwntools_tube_send` | Send raw data to an active tube (process or remote). |
+| `pwntools_tube_sendline` | Send a line (with newline) to an active tube. |
 | `pwntools_unhex` | Decode hexadecimal string back to raw bytes. |
 | `pwntools_unpack` | Unpack bytes into an integer (e.g., u64, u32, u16). |
 
-<!-- Total tools: 184 listed: 184 -->
+<!-- Total tools: 197 listed: 197 -->
 </details>
 
 ## License

@@ -54,6 +54,10 @@ from pwntools_mcp import (
     AlignParams,
     BitOpParams,
     ElfRelocsParams,
+    ElfDiffParams,
+    BitsParams,
+    ContextParams,
+    TubeProcessParams,
     pwntools_analyze_elf,
     pwntools_find_rop,
     pwntools_shellcraft,
@@ -91,6 +95,12 @@ from pwntools_mcp import (
     pwntools_align,
     pwntools_rol,
     pwntools_ror,
+    pwntools_elf_diff,
+    pwntools_bits,
+    pwntools_context,
+    pwntools_log_level,
+    pwntools_process,
+    pwntools_tube_list,
 )
 
 
@@ -649,3 +659,48 @@ class TestElfTools:
     async def test_elf_notes_no_binary(self):
         r = await pwntools_elf_notes(ElfPath(path="/nonexistent"))
         assert "Error" in r or "No notes" in r
+
+
+class TestElfDiff:
+    @pytest.mark.asyncio
+    async def test_diff_no_binary(self):
+        r = await pwntools_elf_diff(ElfDiffParams(path_a="/nonexistent_a", path_b="/nonexistent_b"))
+        assert "Error" in r
+
+
+class TestBits:
+    @pytest.mark.asyncio
+    async def test_get_bit(self):
+        r = await pwntools_bits(BitsParams(value=0x8, bit=3))
+        assert "set" in r
+
+    @pytest.mark.asyncio
+    async def test_clear_bit(self):
+        r = await pwntools_bits(BitsParams(value=0x8, bit=3, set_to=0))
+        assert "0x0" in r or "changed" in r
+
+
+class TestContext:
+    @pytest.mark.asyncio
+    async def test_show_context(self):
+        r = await pwntools_context(ContextParams())
+        assert "Arch" in r
+
+
+class TestLogLevel:
+    @pytest.mark.asyncio
+    async def test_invalid_level(self):
+        r = await pwntools_log_level("invalid")
+        assert "Error" in r
+
+
+class TestProcessTube:
+    @pytest.mark.asyncio
+    async def test_process_no_binary(self):
+        r = await pwntools_process(TubeProcessParams(binary="/nonexistent"))
+        assert "Error" in r
+
+    @pytest.mark.asyncio
+    async def test_tube_list_empty(self):
+        r = await pwntools_tube_list()
+        assert "No active tubes" in r

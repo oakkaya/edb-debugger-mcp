@@ -1296,6 +1296,71 @@ class ElfRelocsParams(BaseModel):
     type_filter: str = Field(default="all", description="Relocation type: all, got, plt, absolute, relative")
 
 
+class TubeBaseParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    tube_id: str = Field(default="last", description="Tube identifier ('last' for most recent)")
+
+
+class TubeProcessParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    binary: str = Field(..., description="Binary path to execute", min_length=1)
+    args: str = Field(default="", description="Command-line arguments")
+    tube_id: str = Field(default="last", description="Optional tube identifier")
+    timeout: int = Field(default=30, description="Timeout in seconds", ge=1, le=300)
+
+
+class TubeRemoteParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    host: str = Field(..., description="Remote hostname or IP", min_length=1)
+    port: int = Field(..., description="Remote port", ge=1, le=65535)
+    tube_id: str = Field(default="last", description="Optional tube identifier")
+    timeout: int = Field(default=30, description="Timeout in seconds", ge=1, le=300)
+
+
+class TubeSendParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    data: str = Field(..., description="Data to send (bytes)")
+    tube_id: str = Field(default="last", description="Tube identifier")
+
+
+class TubeRecvParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    nbytes: int = Field(default=4096, description="Number of bytes to receive", ge=1, le=65536)
+    tube_id: str = Field(default="last", description="Tube identifier")
+    timeout: int = Field(default=5, description="Receive timeout in seconds", ge=1, le=60)
+
+
+class TubeRecvUntilParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    pattern: str = Field(..., description="Pattern to receive until (e.g., ':')")
+    tube_id: str = Field(default="last", description="Tube identifier")
+    timeout: int = Field(default=5, description="Receive timeout in seconds", ge=1, le=60)
+    drop: bool = Field(default=True, description="Drop the matched pattern from result")
+
+
+class ElfDiffParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path_a: str = Field(..., description="First ELF binary path", min_length=1)
+    path_b: str = Field(..., description="Second ELF binary path", min_length=1)
+    sections_only: bool = Field(default=False, description="Only compare section headers")
+
+
+class BitsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: int = Field(..., description="Integer value")
+    bit: int = Field(default=0, description="Bit position to get/set (0-indexed, LSB)", ge=0, le=63)
+    set_to: int = Field(default=-1, description="Set to 0 or 1, or -1 to just get")
+
+
+class ContextParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    arch: str = Field(default="", description="Set architecture (amd64, i386, arm, aarch64, mips)")
+    os: str = Field(default="", description="Set OS (linux, windows)")
+    endian: str = Field(default="", description="Set endianness (little, big)")
+    log_level: str = Field(default="", description="Set log level (debug, info, warning, error)")
+    bits: int = Field(default=0, description="Set CPU bits (32, 64)")
+
+
 @mcp.tool(
     name="pwntools_elf_sections",
     annotations={"title": "Detailed ELF Sections", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
@@ -1806,5 +1871,340 @@ async def pwntools_ror(params: BitOpParams) -> str:
             f"  Input:  {hex(params.value)} ({params.value})\n"
             f"  Output: {hex(result_val)} ({result_val})"
         )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+# --- Tube management ---
+_tubes: dict = {}
+
+
+def _get_tube(tube_id: str = "last"):
+    if tube_id == "last":
+        if not _tubes:
+            raise RuntimeError("No active tubes. Start one with pwntools_process or pwntools_remote")
+        return list(_tubes.values())[-1]
+    if tube_id not in _tubes:
+        raise RuntimeError(f"Tube '{tube_id}' not found")
+    return _tubes[tube_id]
+
+
+@mcp.tool(
+    name="pwntools_process",
+    annotations={"title": "Start Local Process", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_process(params: TubeProcessParams) -> str:
+    '''Start a local process for interaction (pwntools tube).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        args = [params.binary] + (params.args.split() if params.args else [])
+        tube = pwn.process(args, timeout=params.timeout)
+        tid = params.tube_id
+        _tubes[tid] = tube
+        return f"Process started: {params.binary}\n  PID: {tube.pid}\n  Tube ID: '{tid}'\n  Connected: {tube.connected()}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_remote",
+    annotations={"title": "Connect to Remote Service", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_remote(params: TubeRemoteParams) -> str:
+    '''Connect to a remote TCP service (pwntools tube).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        tube = pwn.remote(params.host, params.port, timeout=params.timeout)
+        tid = params.tube_id
+        _tubes[tid] = tube
+        return f"Connected to {params.host}:{params.port}\n  Tube ID: '{tid}'\n  Connected: {tube.connected()}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_send",
+    annotations={"title": "Send Data to Tube", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_tube_send(params: TubeSendParams) -> str:
+    '''Send raw data to an active tube (process or remote).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        data = params.data.encode("latin-1") if "\\x" in params.data else params.data.encode()
+        tube.send(data)
+        return f"Sent {len(data)} bytes to tube '{params.tube_id}'"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_sendline",
+    annotations={"title": "Send Line to Tube", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_tube_sendline(params: TubeSendParams) -> str:
+    '''Send a line (with newline) to an active tube.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        data = params.data.encode("latin-1") if "\\x" in params.data else params.data.encode()
+        tube.sendline(data)
+        return f"Sent line ({len(data)}+1 bytes) to tube '{params.tube_id}'"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_recv",
+    annotations={"title": "Receive from Tube", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_tube_recv(params: TubeRecvParams) -> str:
+    '''Receive data from an active tube.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        data = tube.recv(params.nbytes, timeout=params.timeout)
+        hex_repr = data.hex()
+        ascii_repr = "".join(chr(b) if 32 <= b < 127 else "." for b in data)
+        return (
+            f"Received {len(data)} bytes from tube '{params.tube_id}':\n"
+            f"  Raw: {data!r}\n"
+            f"  Hex: {' '.join(hex_repr[i:i+2] for i in range(0, len(hex_repr), 2))}\n"
+            f"  ASCII: {ascii_repr}"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_recvline",
+    annotations={"title": "Receive Line from Tube", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_tube_recvline(params: TubeRecvParams) -> str:
+    '''Receive a single line from an active tube.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        data = tube.recvline(timeout=params.timeout)
+        hex_repr = data.hex()
+        ascii_repr = "".join(chr(b) if 32 <= b < 127 else "." for b in data)
+        return (
+            f"Received line ({len(data)} bytes) from tube '{params.tube_id}':\n"
+            f"  Raw: {data!r}\n"
+            f"  Hex: {' '.join(hex_repr[i:i+2] for i in range(0, len(hex_repr), 2))}\n"
+            f"  ASCII: {ascii_repr}"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_recvuntil",
+    annotations={"title": "Receive Until Pattern", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_tube_recvuntil(params: TubeRecvUntilParams) -> str:
+    '''Receive data from a tube until a pattern is found.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        data = tube.recvuntil(params.pattern.encode(), drop=params.drop, timeout=params.timeout)
+        hex_repr = data.hex()
+        ascii_repr = "".join(chr(b) if 32 <= b < 127 else "." for b in data)
+        return (
+            f"Received until '{params.pattern}' ({len(data)} bytes) from tube '{params.tube_id}':\n"
+            f"  Raw: {data!r}\n"
+            f"  Hex: {' '.join(hex_repr[i:i+2] for i in range(0, len(hex_repr), 2))}\n"
+            f"  ASCII: {ascii_repr}"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_close",
+    annotations={"title": "Close Active Tube", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_tube_close(params: TubeBaseParams) -> str:
+    '''Close an active tube connection.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        tube = _get_tube(params.tube_id)
+        tube.close()
+        tid = params.tube_id if params.tube_id != "last" else next(
+            (k for k, v in _tubes.items() if v is tube), "last"
+        )
+        if tid in _tubes:
+            del _tubes[tid]
+        return f"Tube '{params.tube_id}' closed"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_tube_list",
+    annotations={"title": "List Active Tubes", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_tube_list() -> str:
+    '''List all active tube connections.'''
+    if not _tubes:
+        return "No active tubes"
+    lines = ["Active tubes:", ""]
+    for tid, tube in _tubes.items():
+        conn = tube.connected()
+        pid = getattr(tube, "pid", "N/A")
+        lines.append(f"  [{tid}] PID={pid} connected={conn}")
+    return "\n".join(lines)
+
+
+@mcp.tool(
+    name="pwntools_elf_diff",
+    annotations={"title": "Diff Two ELF Binaries", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_diff(params: ElfDiffParams) -> str:
+    '''Compare two ELF binaries: sections, segments, symbols.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        a = pwn.ELF(params.path_a, checksec=False)
+        b = pwn.ELF(params.path_b, checksec=False)
+        lines = [f"Diff: {params.path_a} vs {params.path_b}", ""]
+
+        a_secs = {s.name: s for s in a.sections if s.name}
+        b_secs = {s.name: s for s in b.sections if s.name}
+        a_only = set(a_secs) - set(b_secs)
+        b_only = set(b_secs) - set(a_secs)
+        common = set(a_secs) & set(b_secs)
+
+        if a_only:
+            lines.append(f"Sections only in A ({len(a_only)}): {', '.join(sorted(a_only))}")
+        if b_only:
+            lines.append(f"Sections only in B ({len(b_only)}): {', '.join(sorted(b_only))}")
+
+        diff_count = 0
+        for name in sorted(common):
+            sa, sb = a_secs[name], b_secs[name]
+            ha, hb = sa.header, sb.header
+            if ha.sh_addr != hb.sh_addr or ha.sh_size != hb.sh_size:
+                lines.append(f"  {name}: addr {hex(ha.sh_addr)}->{hex(hb.sh_addr)}, size {hex(ha.sh_size)}->{hex(hb.sh_size)}")
+                diff_count += 1
+
+        if diff_count == 0 and not a_only and not b_only:
+            lines.append("  No differences found")
+
+        lines.append("")
+        a_syms = {s.name for s in a.symbols if s.name}
+        b_syms = {s.name for s in b.symbols if s.name}
+        sym_diff = a_syms ^ b_syms
+        if sym_diff:
+            lines.append(f"Symbol differences: {len(sym_diff)} unique")
+            for s in sorted(sym_diff)[:20]:
+                side = "A" if s in a_syms else "B"
+                lines.append(f"  [{side}] {s}")
+            if len(sym_diff) > 20:
+                lines.append(f"  ... and {len(sym_diff) - 20} more")
+
+        lines.append("")
+        lines.append(f"A: {params.path_a} ({a.arch} {a.bits}-bit)")
+        lines.append(f"B: {params.path_b} ({b.arch} {b.bits}-bit)")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_bits",
+    annotations={"title": "Get/Set Integer Bits", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_bits(params: BitsParams) -> str:
+    '''Get or set a specific bit in an integer.'''
+    try:
+        current = (params.value >> params.bit) & 1
+        if params.set_to == -1:
+            return (
+                f"Bit inspection of {hex(params.value)} ({params.value}):\n"
+                f"  Bit {params.bit}: {current} ({'set' if current else 'clear'})"
+            )
+        new = params.value
+        if params.set_to:
+            new |= (1 << params.bit)
+        else:
+            new &= ~(1 << params.bit)
+        changed = "changed" if new != params.value else "unchanged"
+        return (
+            f"Bit {params.bit} set to {params.set_to} ({changed}):\n"
+            f"  Before: {hex(params.value)} ({params.value})\n"
+            f"  After:  {hex(new)} ({new})"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_context",
+    annotations={"title": "View/Set Pwntools Context", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_context(params: ContextParams) -> str:
+    '''View or modify pwntools global context (arch, os, endian, log_level).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        changed = []
+        if params.arch:
+            pwn.context.arch = params.arch
+            changed.append(f"arch={params.arch}")
+        if params.os:
+            pwn.context.os = params.os
+            changed.append(f"os={params.os}")
+        if params.endian:
+            pwn.context.endian = params.endian
+            changed.append(f"endian={params.endian}")
+        if params.log_level:
+            pwn.context.log_level = params.log_level
+            changed.append(f"log_level={params.log_level}")
+        if params.bits:
+            pwn.context.bits = params.bits
+            changed.append(f"bits={params.bits}")
+
+        ctx = pwn.context
+        header = "Context updated" if changed else "Current context"
+        return (
+            f"{header}:\n"
+            f"  Arch:      {ctx.arch}\n"
+            f"  Bits:      {ctx.bits}\n"
+            f"  Endian:    {ctx.endian}\n"
+            f"  OS:        {ctx.os}\n"
+            f"  Log Level: {ctx.log_level}\n"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_log_level",
+    annotations={"title": "Set Pwntools Log Level", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_log_level(level: str) -> str:
+    '''Set pwntools log verbosity. Levels: debug, info, warning, error.'''
+    valid = {"debug", "info", "warning", "error"}
+    if level not in valid:
+        return f"Error: invalid level '{level}'. Valid: {', '.join(sorted(valid))}"
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        pwn.context.log_level = level
+        return f"Log level set to: {level}"
     except Exception as e:
         return f"Error: {e}"
