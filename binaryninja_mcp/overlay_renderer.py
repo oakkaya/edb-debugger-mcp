@@ -3,8 +3,7 @@
 import re
 from typing import Optional
 
-from binaryninja import BinaryView, UIContext, log_info, log_error
-from binaryninja.enums import SymbolType
+from binaryninja import BinaryView, UIContext, log_error
 from binaryninja.function import Function
 
 from .mcp_client import MCPClient

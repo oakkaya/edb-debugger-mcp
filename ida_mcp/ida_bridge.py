@@ -5,7 +5,6 @@ edb_debugger_mcp over MCP stdio protocol.
 """
 
 import atexit
-import os
 import sys
 from typing import Optional
 

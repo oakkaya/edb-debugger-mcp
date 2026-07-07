@@ -19,7 +19,6 @@ pytest.importorskip("pwn")
 # Force import of pwntools_mcp once (it registers tools on the global mcp instance)
 # We import edb_debugger_mcp first to ensure the mcp instance exists.
 import edb_debugger_mcp  # noqa: F401
-import pwntools_mcp
 
 from pwntools_mcp import (
     ElfPath,

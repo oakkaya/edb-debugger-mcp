@@ -1,8 +1,7 @@
 """Binary Ninja UI actions for EDB debugger integration."""
 
 from binaryninja import (
-    BinaryView, PluginCommand, Interaction, get_choice_input,
-    get_text_line_input, function_at,
+    BinaryView, PluginCommand, Interaction, get_text_line_input,
 )
 from .mcp_client import MCPClient
 
@@ -29,7 +28,7 @@ def toggle_breakpoint(bv: BinaryView, addr: int):
     if result["isError"]:
         Interaction.show_message_box("EDB Error", result["result"])
     else:
-        bv.set_comment_at(addr, f"BP")
+        bv.set_comment_at(addr, "BP")
         bv.mark_dirty()
 
 

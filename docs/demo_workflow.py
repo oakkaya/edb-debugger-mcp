@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """EDB Debugger MCP — Workflow Demo (Option 1)"""
-import sys, os, time
+import sys
+import os
+import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import importlib
 spec = importlib.util.spec_from_file_location("mcp_client",

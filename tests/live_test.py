@@ -7,13 +7,11 @@ import os
 import tempfile
 import subprocess
 import inspect
-import signal
 
 sys.path.insert(0, os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from edb_debugger_mcp import mcp, backend
-from gdb_backend import GDBBackendError
 
 C = "\033[36m"; G = "\033[32m"; R = "\033[31m"; Y = "\033[33m"; B = "\033[1m"; N = "\033[0m"
 pass_count = 0; fail_count = 0; skip_count = 0

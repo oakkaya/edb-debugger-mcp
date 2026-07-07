@@ -1,11 +1,9 @@
 """MCP stdio transport client — talks to edb_debugger_mcp via JSON-RPC over subprocess."""
 
-import asyncio
 import json
 import os
 import select
 import subprocess
-import sys
 from typing import Any, Optional
 
 

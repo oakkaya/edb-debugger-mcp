@@ -9,7 +9,6 @@ and exposes debugger control as Ghidra menu/toolbar actions.
 """
 
 import atexit
-import os
 import sys
 from typing import Optional
 

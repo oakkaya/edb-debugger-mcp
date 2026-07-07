@@ -7,13 +7,13 @@ Usage: python3 scripts/generate_tool_table.py
 Output: prints markdown to stdout (redirect to update README)
 """
 
-import ast, inspect, re, sys
+import inspect
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from edb_debugger_mcp import mcp
-from pwntools_mcp import pwntools_analyze_elf
 
 tm = mcp._tool_manager
 

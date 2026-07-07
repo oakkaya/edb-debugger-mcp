@@ -1,12 +1,10 @@
 """Tests for README documentation coverage and tool consistency."""
 
-import pytest
 import sys
 import os
 import re
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import edb_debugger_mcp
 from edb_debugger_mcp import mcp
 
 

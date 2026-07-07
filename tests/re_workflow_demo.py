@@ -4,7 +4,10 @@ Shows a realistic RE scenario: analyzing a vulnerable binary with buffer overflo
 finding secret function, generating exploit components.
 """
 
-import asyncio, inspect, os, sys
+import asyncio
+import inspect
+import os
+import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from edb_debugger_mcp import mcp
 from gdb_backend import GDBBackend
@@ -15,7 +18,7 @@ R = "\033[31m"; G = "\033[32m"; Y = "\033[33m"; B = "\033[34m"; C = "\033[36m"; 
 async def call(name, params=None):
     t = mcp._tool_manager._tools.get(name)
     if not t:
-        return f"ERROR"
+        return "ERROR"
     sig = inspect.signature(t.fn)
     kwargs = {}
     for pname, param in sig.parameters.items():
@@ -32,11 +35,11 @@ def section(n):
 
 async def main():
     backend = GDBBackend()
-    print(f"Starting GDB backend..."); await backend.start()
+    print("Starting GDB backend..."); await backend.start()
 
     try:
         # ── ACT 1: Recon ──
-        section("ACT 1: RECON — Load binary + discover");
+        section("ACT 1: RECON — Load binary + discover")
         await call("edb_load_program", {"path": BIN})
 
         r = await call("edb_get_binary_info")
@@ -56,7 +59,7 @@ async def main():
         # ── ACT 2: Analyze vuln function ──
         section("ACT 2: ANALYZE — Disassemble vuln + find buffer")
         r = await call("edb_disassemble", {"location": "vuln", "count": 20})
-        print(f"  Disassembly of vuln:")
+        print("  Disassembly of vuln:")
         for l in str(r).strip().split("\n")[:10]:
             print(f"    {l}")
 
@@ -73,7 +76,7 @@ async def main():
         # ── ACT 3: Set breakpoint + Run ──
         section("ACT 3: EXECUTE — Breakpoint at vuln, run with overflow payload")
         await call("edb_set_breakpoint", {"location": "vuln"})
-        print(f"  Breakpoint set at vuln")
+        print("  Breakpoint set at vuln")
 
         r = await call("edb_run")
         await asyncio.sleep(1.5)
@@ -88,12 +91,12 @@ async def main():
         section("ACT 4: REGISTER STATE")
         r = await call("edb_get_registers")
         regs = str(r).strip().split("\n")[:8]
-        print(f"  Registers:")
+        print("  Registers:")
         for l in regs:
             print(f"    {l}")
 
         r = await call("edb_get_stack", {"count": 16})
-        print(f"  Stack (first 8):")
+        print("  Stack (first 8):")
         for l in str(r).strip().split("\n")[:8]:
             print(f"    {l}")
 
@@ -109,14 +112,14 @@ async def main():
             print(f"  step {i+1}: {insn[:70]}")
 
         r = await call("edb_get_stack", {"count": 16})
-        print(f"  Stack after strcpy (AAAA landed):")
+        print("  Stack after strcpy (AAAA landed):")
         for l in str(r).strip().split("\n")[:6]:
             print(f"    {l}")
 
         # ── ACT 6: ROP + Exploit components ──
         section("ACT 6: EXPLOIT — ROP + shellcode + cyclic")
         r = await call("edb_find_rop_gadgets", {"count": 5})
-        print(f"  ROP gadgets:")
+        print("  ROP gadgets:")
         for l in str(r).strip().split("\n")[:5]:
             print(f"    {l}")
 
@@ -124,7 +127,7 @@ async def main():
         print(f"  ELF security: {str(r)[:120]}")
 
         r = await call("pwntools_find_rop", {"path": BIN, "grep": "pop rdi|ret"})
-        print(f"  Pwntools ROP:")
+        print("  Pwntools ROP:")
         for l in str(r).strip().split("\n")[:3]:
             print(f"    {l}")
 
@@ -140,7 +143,7 @@ async def main():
         # ── ACT 7: Continue to secret ──
         section("ACT 7: REVERSE PAYLOAD — Continue to secret_function")
         r = await call("edb_set_breakpoint", {"location": "secret_function"})
-        print(f"  Breakpoint at secret_function")
+        print("  Breakpoint at secret_function")
 
         r = await call("edb_continue")
         await asyncio.sleep(1)

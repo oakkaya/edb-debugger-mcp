@@ -4,7 +4,6 @@ import asyncio
 import json
 import datetime
 import html
-import re
 from pathlib import Path
 from contextlib import asynccontextmanager
 from collections import OrderedDict

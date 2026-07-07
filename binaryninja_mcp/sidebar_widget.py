@@ -3,8 +3,7 @@
 from typing import Optional
 
 from binaryninja import (
-    BinaryView, SidebarWidget, SidebarWidgetType, SidebarWidgetLocation,
-    UIContext, UIActionHandler, log_info,
+    BinaryView, SidebarWidget, SidebarWidgetType, UIContext, log_info,
 )
 
 from .mcp_client import MCPClient

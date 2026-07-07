@@ -11,10 +11,7 @@ Categories:
 import importlib.util
 import json
 import os
-import signal
-import subprocess
 import sys
-import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -97,7 +94,6 @@ class TestModuleImports:
                 del sys.modules[name]
             sys.modules[name] = idaapi_mock if name == "idaapi" else MagicMock()
 
-        import importlib
         for key in list(sys.modules):
             if "ida_mcp" in key:
                 del sys.modules[key]
@@ -127,7 +123,7 @@ class TestModuleImports:
                 del sys.modules[key]
 
         with pytest.raises((NameError, ImportError)):
-            import ida_mcp.ida_bridge
+            pass
 
 
 # ── Tests: IDAPython import (requires IDA) ──────────────────

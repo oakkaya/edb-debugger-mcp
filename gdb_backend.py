@@ -3,7 +3,6 @@ import json
 import os
 import re
 import signal
-from functools import lru_cache
 from typing import Optional
 
 
@@ -108,7 +107,8 @@ class GDBBackend:
             except asyncio.TimeoutError:
                 continue
             except Exception as exc:
-                import sys, traceback
+                import sys
+                import traceback
                 traceback.print_exception(type(exc), exc, exc.__traceback__, file=sys.stderr)
                 break
 
@@ -892,7 +892,7 @@ class GDBBackend:
         output = await self._send_command(cmd)
         parsed = self._parse_mi_result(output)
         lines = parsed["console"]
-        return "\n".join(lines) if lines else f"Pattern not found"
+        return "\n".join(lines) if lines else "Pattern not found"
 
     async def find_strings(self, address: str = "", length: str = "") -> str:
         if address and length:
@@ -912,7 +912,7 @@ class GDBBackend:
         output = await self._send_command(cmd)
         parsed = self._parse_mi_result(output)
         lines = parsed["console"]
-        return "\n".join(lines) if lines else f"Instruction pattern not found"
+        return "\n".join(lines) if lines else "Instruction pattern not found"
 
     async def find_references(self, address: str) -> str:
         result_parts = [f"References to {address}:"]
@@ -1070,7 +1070,7 @@ class GDBBackend:
             end_int = int(last_addr, 16) + 4
             size = end_int - start_int
             return f"Function: {name}\n  Start: {start_addr}\n  End:   0x{end_int:016x}\n  Size:  {size} bytes"
-        except Exception as e:
+        except Exception:
             output = await self._send_command(f"info functions {name}")
             parsed = self._parse_mi_result(output)
             lines = parsed["console"]
@@ -1376,7 +1376,6 @@ class GDBBackend:
             if chunk1 != chunk2:
                 hex1 = " ".join(f"{b:02x}" for b in chunk1)
                 hex2 = " ".join(f"{b:02x}" for b in chunk2)
-                addr_val = int(address1, 16) + i if address1.startswith("0x") else i
                 result_parts.append(f"  Offset +{i:04x}:")
                 result_parts.append(f"    {address1}: {hex1:<48}")
                 result_parts.append(f"    {address2}: {hex2:<48}")
@@ -1491,7 +1490,6 @@ class GDBBackend:
             addr = "$pc"
         else:
             addr = address
-        ret_opcodes = {"x86_64": ["c3", "cb", "ca", "cb"], "i386": ["c3", "cb", "ca", "cb"]}
         output = await self._send_command(f"-data-read-memory-bytes {addr} {count * 4}")
         parsed = self._parse_mi_result(output)
         raw_bytes = b""
@@ -1540,7 +1538,6 @@ class GDBBackend:
                         else:
                             instructions.append(entry)
         calls = []
-        strings = []
         branches = []
         for inst in instructions:
             if isinstance(inst, dict):
@@ -1550,10 +1547,6 @@ class GDBBackend:
                     calls.append(f"  CALL {addr}: {text}")
                 elif "jmp" in text.lower() or "je " in text.lower() or "jne " in text.lower() or "jz " in text.lower() or "jnz " in text.lower():
                     branches.append(f"  BRANCH {addr}: {text}")
-        addr_int = int(address, 16) if address.startswith("0x") else 0
-        str_output = await self._send_command(f"find /b {region_start}, +{hex(size)}, 0x20, 0x7f")
-        str_parsed = self._parse_mi_result(str_output)
-        str_lines = str_parsed["console"]
         result_parts = [
             f"Analysis of region {region_start} ({size} bytes):",
             f"  Instructions: {len(instructions)}",
@@ -1702,12 +1695,12 @@ class GDBBackend:
             if not encoding:
                 return f"Cannot assemble: {instruction}"
             hex_bytes = " ".join(f"0x{b:02x}" for b in encoding)
-            result = await self.write_memory_bytes(address, hex_bytes)
+            await self.write_memory_bytes(address, hex_bytes)
             addr_str = address if address.startswith("0x") else f"0x{int(address, 16):x}" if address else address
             return f"Assembled '{instruction}' -> {hex_bytes} at {addr_str}"
         except ImportError:
             return await self._assemble_gdb_fallback(address, instruction)
-        except Exception as e:
+        except Exception:
             return await self._assemble_gdb_fallback(address, instruction)
 
     async def _assemble_gdb_fallback(self, address: str, instruction: str) -> str:
@@ -1775,7 +1768,7 @@ class GDBBackend:
             output2 = await self._send_command(f"x/1bx {target}")
             parsed2 = self._parse_mi_result(output2)
             bytes_str = parsed2["console"][0] if parsed2["console"] else ""
-            output3 = await self._send_command(f"python o=gdb.execute('info registers',to_string=True); print(o)", timeout=10.0)
+            output3 = await self._send_command("python o=gdb.execute('info registers',to_string=True); print(o)", timeout=10.0)
             parsed3 = self._parse_mi_result(output3)
             return f"Instruction detail:\n  {detail}\n  Bytes: {bytes_str}\n  Registers at execution:\n{parsed3['console'][0] if parsed3['console'] else ''}"
         except GDBBackendError:
@@ -1894,7 +1887,6 @@ class GDBBackend:
             return f"Error: {e}"
 
     async def signal_handling(self, signal: str, action: str = "") -> str:
-        valid_signals = {"SIGHUP", "SIGINT", "SIGQUIT", "SIGILL", "SIGTRAP", "SIGABRT", "SIGBUS", "SIGFPE", "SIGKILL", "SIGUSR1", "SIGSEGV", "SIGUSR2", "SIGPIPE", "SIGALRM", "SIGTERM", "SIGSTKFLT", "SIGCHLD", "SIGCONT", "SIGSTOP", "SIGTSTP", "SIGTTIN", "SIGTTOU", "SIGURG", "SIGXCPU", "SIGXFSZ", "SIGVTALRM", "SIGPROF", "SIGWINCH", "SIGIO", "SIGPWR", "SIGSYS"}
         valid_actions = {"", "stop", "nostop", "print", "noprint", "pass", "nopass", "ignore"}
         if action and action not in valid_actions:
             return f"Invalid action '{action}'. Valid: stop, nostop, print, noprint, pass, nopass, ignore"
@@ -2661,11 +2653,9 @@ class GDBBackend:
     async def set_disable_aslr(self, disable: bool) -> str:
         try:
             if disable:
-                output = await self._send_command("set disable-randomization on")
+                await self._send_command("set disable-randomization on")
             else:
-                output = await self._send_command("set disable-randomization off")
-            parsed = self._parse_mi_result(output)
-            console = "\n".join(parsed.get("console", []))
+                await self._send_command("set disable-randomization off")
             return f"ASLR {'disabled' if disable else 'enabled'}"
         except Exception as e:
             return f"Error: {e}"
@@ -2673,13 +2663,11 @@ class GDBBackend:
     async def set_disable_lazy_binding(self, disable: bool) -> str:
         try:
             if disable:
-                output = await self._send_command("set breakpoint pending on")
-                output2 = await self._send_command("set breakpoint always-inserted on")
+                await self._send_command("set breakpoint pending on")
+                await self._send_command("set breakpoint always-inserted on")
             else:
-                output = await self._send_command("set breakpoint pending off")
-                output2 = await self._send_command("set breakpoint always-inserted off")
-            parsed = self._parse_mi_result(output)
-            parsed2 = self._parse_mi_result(output2)
+                await self._send_command("set breakpoint pending off")
+                await self._send_command("set breakpoint always-inserted off")
             return f"Lazy binding {'disabled' if disable else 'enabled'}"
         except Exception as e:
             return f"Error: {e}"
@@ -2855,7 +2843,8 @@ class GDBBackend:
         return str(result)
 
     async def compare_snapshot(self, label: str = "") -> str:
-        import time, json
+        import time
+        import json
         ts = label or f"snapshot_{int(time.time())}"
         regs_before = await self._send_command("info registers")
         mem_snapshots = []
@@ -2979,7 +2968,6 @@ class GDBBackend:
     async def remote_arch(self) -> str:
         """Detect remote target architecture via GDB."""
         resp = await self._send_command("info target")
-        lines = resp.split("\n") if isinstance(resp, str) else [str(resp)]
         arch_resp = await self._send_command("show architecture")
         target_resp = await self._send_command("target asm")
         return (
@@ -3108,15 +3096,14 @@ class GDBBackend:
 
     async def get_function_xrefs(self, address: str) -> str:
         """Show cross-references to a given address or symbol."""
-        resp = await self._send_command(f"info functions")
+        resp = await self._send_command("info functions")
         return f"Cross-references for {address}:\n\n" + str(resp)[:2000]
 
     async def goto_function_start(self, address: str) -> str:
         """Find the function start containing the given address."""
         resp = await self._send_command(f"info line *{address}")
-        func_resp = await self._send_command(f"info functions")
+        func_resp = await self._send_command("info functions")
         try:
-            frame_resp = await self._send_command("-stack-info-frame")
             return f"Function info for {address}:\nGDB line: {resp}\nFunctions: {func_resp[:500]}"
         except Exception as e:
             return f"Error: {e}"
@@ -3142,7 +3129,6 @@ class GDBBackend:
             if not resp:
                 return "Error: Could not get memory mappings"
 
-            import re
             lines = str(resp).split("\n")
             results = []
             count = 0
@@ -3191,7 +3177,6 @@ class GDBBackend:
     async def list_breakpoint_types(self) -> str:
         """List supported breakpoint types."""
         resp = await self._send_command("info breakpoints")
-        hw_resp = await self._send_command("maintenance print breakpoints")
         return (
             "Supported breakpoint types:\n"
             "  Software breakpoint (edb_set_breakpoint): Standard int3-based, unlimited count\n"

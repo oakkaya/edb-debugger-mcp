@@ -1000,9 +1000,9 @@ async def pwntools_flat(params: FlatParams) -> str:
             result.append(f"    {i:04x}: {hex_str:48s} {ascii_str}")
         result.append("")
         c_bytes = "".join(f"\\x{b:02x}" for b in packed)
-        result.append(f"  C-array: unsigned char payload[] = {{")
+        result.append("  C-array: unsigned char payload[] = {")
         result.append(f"    {c_bytes}")
-        result.append(f"  }};")
+        result.append("  };")
         return "\n".join(result)
     except Exception as e:
         return f"Error: {e}"
@@ -1234,7 +1234,7 @@ async def pwntools_make_elf(params: MakeElfParams) -> str:
 
         elf = pwn.ELF(output, checksec=False) if os_mod.path.getsize(output) > 0 else None
         result = [
-            f"=== ELF Created ===",
+            "=== ELF Created ===",
             f"  Path: {output}",
             f"  Size: {st.st_size} bytes",
             "",
@@ -1619,7 +1619,7 @@ async def pwntools_entropy(params: EntropyParams) -> str:
 
         if total >= 1024:
             block_size = 256
-            result.append(f"\n  Per-block entropy (256B blocks):")
+            result.append("\n  Per-block entropy (256B blocks):")
             max_blocks = min(total // block_size, 64)
             for i in range(max_blocks):
                 block = data[i * block_size:(i + 1) * block_size]

@@ -54,6 +54,31 @@ transport = "stdio"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E402",  # module level import not at top of file - needed for ghidra/ida conditional imports
+    "E501",  # line too long
+    "E701",  # multiple statements on one line (colon)
+    "E702",  # multiple statements on one line (semicolon)
+    "E741",  # ambiguous variable name - cli tools use single-char vars
+    "F403",  # star import unable to detect undefined names
+    "F405",  # star import may be undefined
+    "F811",  # redefinition of unused variable - needed for compat
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E402", "E501", "E701", "E702", "E741", "F401", "F403", "F405", "F841"]
+"examples/*" = ["E402", "E501", "E701", "E702", "E741", "F403", "F405", "F401", "F841"]
+"scripts/*" = ["E701", "E702", "E741", "F403", "F405", "F401", "F841"]
+"ghidra_mcp/*" = ["F401"]
+"ida_mcp/*" = ["F401", "F841"]
+"binaryninja_mcp/*" = ["F401", "F841"]
+
 [tool.hatch.build.targets.wheel]
 packages = [
     "edb_debugger_mcp/",

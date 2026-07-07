@@ -1,9 +1,8 @@
 """x64dbg bridge plugin — connects x64dbg to edb_debugger_mcp via MCP stdio transport."""
 
-import os
 import sys
 
-from x64dbgpy.pluginsdk import menu, message, disasm
+from x64dbgpy.pluginsdk import menu, message
 import x64dbg
 
 from .mcp_client import MCPClient

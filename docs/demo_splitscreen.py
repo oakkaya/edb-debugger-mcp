@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """EDB Debugger MCP — Split-Screen Demo (Option 2)"""
-import sys, os, time, json
+import sys
+import os
+import time
+import json
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import importlib
 spec = importlib.util.spec_from_file_location("mcp_client",
@@ -47,6 +50,6 @@ show("pwntools_shellcraft", "Shellcode", {"purpose": "sh", "arch": "amd64"})
 show("pwntools_cyclic", "Cyclic 64b", {"count": 64})
 
 print(f"  {'─'*W}")
-print(f"  147 tools | pip install edb-debugger-mcp")
+print("  147 tools | pip install edb-debugger-mcp")
 print()
 client.stop()

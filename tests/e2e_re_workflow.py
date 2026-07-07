@@ -3,7 +3,10 @@ Comprehensive E2E reverse engineering workflow via MCP tools.
 Tests ALL 135 edb_ + 12 pwntools_ tools with a real GDB backend.
 """
 
-import asyncio, inspect, os, sys
+import asyncio
+import inspect
+import os
+import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from edb_debugger_mcp import mcp

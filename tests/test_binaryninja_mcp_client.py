@@ -3,7 +3,8 @@ Test Binary Ninja plugin's MCP client against the real edb_debugger_mcp server.
 Verifies JSON-RPC protocol, Content-Length framing, tool calls, error handling.
 """
 
-import json, os, sys, time
+import os
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Import MCPClient directly (avoid binaryninja import chain)
@@ -29,7 +30,7 @@ def main():
     # Test: start (spawns edb_debugger_mcp.py subprocess internally)
     r = client.start(python=sys.executable)
     connected = "Connected" in r and "unknown" not in r
-    ok(f"start() -> connected") if connected else fail("start failed", r)
+    ok("start() -> connected") if connected else fail("start failed", r)
     print(f"     {r}")
 
     if not client.is_running:
