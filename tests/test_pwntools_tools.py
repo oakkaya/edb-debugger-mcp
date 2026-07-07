@@ -49,6 +49,11 @@ from pwntools_mcp import (
     ElfStringsParams,
     ElfDepsParams,
     EntropyParams,
+    EncodeHexParams,
+    DecodeHexParams,
+    AlignParams,
+    BitOpParams,
+    ElfRelocsParams,
     pwntools_analyze_elf,
     pwntools_find_rop,
     pwntools_shellcraft,
@@ -76,6 +81,16 @@ from pwntools_mcp import (
     pwntools_elf_strings,
     pwntools_elf_deps,
     pwntools_entropy,
+    pwntools_elf_got,
+    pwntools_elf_plt,
+    pwntools_elf_segments,
+    pwntools_elf_relocs,
+    pwntools_elf_notes,
+    pwntools_enhex,
+    pwntools_unhex,
+    pwntools_align,
+    pwntools_rol,
+    pwntools_ror,
 )
 
 
@@ -551,3 +566,86 @@ class TestBackendFallback:
         backend = GDBBackend()
         r = await backend.get_binary_info()
         assert r == "No binary loaded"
+
+
+class TestEnhex:
+    @pytest.mark.asyncio
+    async def test_encode_ascii(self):
+        r = await pwntools_enhex(EncodeHexParams(data="hello"))
+        assert "hello" in r
+        assert "Hex" in r
+
+    @pytest.mark.asyncio
+    async def test_encode_empty_fails(self):
+        with pytest.raises(Exception):
+            await pwntools_enhex(EncodeHexParams(data=""))
+
+
+class TestUnhex:
+    @pytest.mark.asyncio
+    async def test_decode_simple(self):
+        r = await pwntools_unhex(DecodeHexParams(hex_str="deadbeef"))
+        assert "Decoded" in r
+        assert "\\xde\\xad" in r
+
+    @pytest.mark.asyncio
+    async def test_decode_with_spaces(self):
+        r = await pwntools_unhex(DecodeHexParams(hex_str="de ad be ef"))
+        assert "Decoded" in r
+
+
+class TestAlign:
+    @pytest.mark.asyncio
+    async def test_align_page(self):
+        r = await pwntools_align(AlignParams(value=0x1234, alignment=0x1000))
+        assert "0x1000" in r
+        assert "Aligned down" in r
+
+    @pytest.mark.asyncio
+    async def test_align_zero(self):
+        r = await pwntools_align(AlignParams(value=0, alignment=0x1000))
+        assert "0x0" in r
+
+
+class TestBitOps:
+    @pytest.mark.asyncio
+    async def test_rol(self):
+        r = await pwntools_rol(BitOpParams(value=0x01, shift=1, bits=8))
+        assert "0x2" in r
+
+    @pytest.mark.asyncio
+    async def test_ror(self):
+        r = await pwntools_ror(BitOpParams(value=0x02, shift=1, bits=8))
+        assert "0x1" in r
+
+    @pytest.mark.asyncio
+    async def test_rol_wraparound(self):
+        r = await pwntools_rol(BitOpParams(value=0x80, shift=1, bits=8))
+        assert "0x1" in r
+
+
+class TestElfTools:
+    @pytest.mark.asyncio
+    async def test_elf_got_no_binary(self):
+        r = await pwntools_elf_got(ElfPath(path="/nonexistent"))
+        assert "Error" in r or "No GOT" in r
+
+    @pytest.mark.asyncio
+    async def test_elf_plt_no_binary(self):
+        r = await pwntools_elf_plt(ElfPath(path="/nonexistent"))
+        assert "Error" in r or "No PLT" in r
+
+    @pytest.mark.asyncio
+    async def test_elf_segments_no_binary(self):
+        r = await pwntools_elf_segments(ElfPath(path="/nonexistent"))
+        assert "Error" in r
+
+    @pytest.mark.asyncio
+    async def test_elf_relocs_no_binary(self):
+        r = await pwntools_elf_relocs(ElfRelocsParams(path="/nonexistent"))
+        assert "Error" in r
+
+    @pytest.mark.asyncio
+    async def test_elf_notes_no_binary(self):
+        r = await pwntools_elf_notes(ElfPath(path="/nonexistent"))
+        assert "Error" in r or "No notes" in r

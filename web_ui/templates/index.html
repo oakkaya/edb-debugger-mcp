@@ -19,6 +19,7 @@
   --warning: #d29922;
   --code-bg: #1c2128;
   --header-h: 44px;
+  --tab-h: 32px;
   --toolbar-h: 36px;
   --sidebar-w: 220px;
   --state-w: 280px;
@@ -58,6 +59,43 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
   font-weight: 600;
 }
 #status-badge.error { background: var(--error); }
+
+/* Tab Bar */
+#tab-bar {
+  display: flex;
+  align-items: stretch;
+  height: var(--tab-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  padding: 0 8px;
+  gap: 2px;
+}
+.tab-btn {
+  padding: 0 16px;
+  font-size: 11px;
+  font-weight: 500;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.1s;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); border-bottom-color: var(--border); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Tab Container */
+#tab-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tab-pane { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.tab-pane.active { display: flex; }
+.tab-padded { padding: 16px; overflow-y: auto; height: 100%; }
 
 /* Quick Actions Toolbar */
 #toolbar {
@@ -346,6 +384,154 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 }
 #toggle-state:hover { color: var(--text); background: var(--code-bg); }
 
+/* History Tab */
+.history-list { display: flex; flex-direction: column; gap: 4px; }
+.history-entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.history-entry.error { border-left: 3px solid var(--error); }
+.history-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.history-header:hover { background: rgba(88,166,255,0.04); }
+.history-tool { font-weight: 600; font-size: 12px; color: var(--accent); }
+.history-time { font-size: 10px; color: var(--text-dim); margin-left: auto; }
+.history-arrow { font-size: 9px; color: var(--text-dim); transition: transform 0.12s; }
+.history-body {
+  padding: 0 10px 8px;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+}
+.history-body.collapsed { display: none; }
+.history-body pre {
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 6px;
+}
+.rerun-btn {
+  padding: 2px 10px;
+  background: none;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 10px;
+  cursor: pointer;
+}
+.rerun-btn:hover { background: rgba(88,166,255,0.1); }
+
+/* Sessions Tab */
+.session-save-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.session-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 12px;
+}
+.session-input:focus { outline: none; border-color: var(--accent); }
+.session-list { display: flex; flex-direction: column; gap: 4px; }
+.session-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.session-info { display: flex; flex-direction: column; gap: 2px; }
+.session-name { font-weight: 600; font-size: 13px; }
+.session-time { font-size: 10px; color: var(--text-dim); }
+.session-actions { display: flex; gap: 4px; }
+.btn-primary {
+  padding: 6px 16px;
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-small { padding: 4px 10px; border-radius: 3px; font-size: 10px; cursor: pointer; border: none; }
+.btn-accent {
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+.btn-accent:hover { background: var(--accent-hover); }
+.btn-danger {
+  background: none;
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+.btn-danger:hover { background: rgba(248,81,73,0.1); }
+
+/* State Tab (full page) */
+.state-tab-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 1000px) {
+  .state-tab-grid { grid-template-columns: 1fr; }
+}
+.state-tab-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 12px;
+}
+.state-tab-card h3 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.state-tab-card pre {
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Toast Notification */
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 11px;
+  z-index: 999;
+  transition: opacity 0.3s;
+  opacity: 0;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; }
+#toast.success { background: var(--success); color: #000; }
+#toast.error { background: var(--error); color: #fff; }
+
 @media (max-width: 900px) {
   #state-panel { display: none; }
   #sidebar { width: 160px; min-width: 160px; }
@@ -361,96 +547,113 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
   </div>
 </header>
 
-<div id="toolbar">
-  {% for action in quick_actions %}
-  <button class="qbtn" onclick="quickAction('{{ action.tool }}')" title="{{ action.tool }}">
-    <span class="icon">{% if action.icon == 'cpu' %}▣{% elif action.icon == 'stack' %}⬓{% elif action.icon == 'code' %}⟨⟩{% elif action.icon == 'map' %}☰{% elif action.icon == 'list' %}≡{% elif action.icon == 'stop' %}◼{% elif action.icon == 'info' %}ⓘ{% elif action.icon == 'refresh' %}↻{% endif %}</span>
-    {{ action.name }}
-  </button>
-  {% endfor %}
-  <div class="toolbar-divider"></div>
-  <button class="qbtn" onclick="refreshState()">⟳ Refresh</button>
-  <button class="qbtn" id="toggle-state-btn" onclick="toggleState()">⊞ State</button>
-</div>
+<nav id="tab-bar">
+  <button class="tab-btn active" data-tab="console" onclick="switchTab('console')">Console</button>
+  <button class="tab-btn" data-tab="state" hx-get="/api/tabs/state" hx-target="#tab-state" hx-trigger="click once" onclick="switchTab('state')">State</button>
+  <button class="tab-btn" data-tab="history" hx-get="/api/tabs/history" hx-target="#tab-history" hx-trigger="click once" onclick="switchTab('history')">History</button>
+  <button class="tab-btn" data-tab="sessions" hx-get="/api/tabs/sessions" hx-target="#tab-sessions" hx-trigger="click once" onclick="switchTab('sessions')">Sessions</button>
+</nav>
 
-<div id="main">
-  <nav id="sidebar">
-    {% for category, tools in categorized_tools.items() %}
-    <div class="category">
-      <div class="category-header" onclick="toggleCategory(this)">
-        <span>{{ category }}</span>
-        <span class="arrow">&#9660;</span>
-      </div>
-      <div class="category-body" data-tools='{{ tools | map(attribute="name") | list | tojson }}'>
-        {% for tool in tools %}
-        {% set ns = namespace(has_inputs=false) %}
-        {% if tool.inputSchema and tool.inputSchema.properties %}
-          {% set ns.has_inputs = true %}
-        {% endif %}
-        <button class="tool-btn"
-                data-tool-name="{{ tool.name }}"
-                data-has-inputs="{{ 'true' if ns.has_inputs else 'false' }}"
-                onclick="selectTool(this)">
-          {{ tool.name | replace("edb_", "") | replace("pwntools_", "") }}
-          {% if ns.has_inputs %}<span class="has-params">&#9881;</span>{% endif %}
-        </button>
+<div id="tab-container">
+  <div id="tab-console" class="tab-pane active">
+    <div id="toolbar">
+      {% for action in quick_actions %}
+      <button class="qbtn" onclick="quickAction('{{ action.tool }}')" title="{{ action.tool }}">
+        <span class="icon">{% if action.icon == 'cpu' %}▣{% elif action.icon == 'stack' %}⬓{% elif action.icon == 'code' %}⟨⟩{% elif action.icon == 'map' %}☰{% elif action.icon == 'list' %}≡{% elif action.icon == 'stop' %}◼{% elif action.icon == 'info' %}ⓘ{% elif action.icon == 'refresh' %}↻{% endif %}</span>
+        {{ action.name }}
+      </button>
+      {% endfor %}
+      <div class="toolbar-divider"></div>
+      <button class="qbtn" onclick="refreshState()">⟳ Refresh</button>
+      <button class="qbtn" id="toggle-state-btn" onclick="toggleState()">⊞ State</button>
+    </div>
+
+    <div id="main">
+      <nav id="sidebar">
+        {% for category, tools in categorized_tools.items() %}
+        <div class="category">
+          <div class="category-header" onclick="toggleCategory(this)">
+            <span>{{ category }}</span>
+            <span class="arrow">&#9660;</span>
+          </div>
+          <div class="category-body" data-tools='{{ tools | map(attribute="name") | list | tojson }}'>
+            {% for tool in tools %}
+            {% set ns = namespace(has_inputs=false) %}
+            {% if tool.inputSchema and tool.inputSchema.properties %}
+              {% set ns.has_inputs = true %}
+            {% endif %}
+            <button class="tool-btn"
+                    data-tool-name="{{ tool.name }}"
+                    data-has-inputs="{{ 'true' if ns.has_inputs else 'false' }}"
+                    onclick="selectTool(this)">
+              {{ tool.name | replace("edb_", "") | replace("pwntools_", "") }}
+              {% if ns.has_inputs %}<span class="has-params">&#9881;</span>{% endif %}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
         {% endfor %}
-      </div>
-    </div>
-    {% endfor %}
-  </nav>
+      </nav>
 
-  <div id="center">
-    <div id="tool-panel">
-      <div style="display:flex;justify-content:space-between;align-items:start">
-        <div>
-          <h2 id="tool-name"></h2>
-          <p class="desc" id="tool-desc"></p>
+      <div id="center">
+        <div id="tool-panel">
+          <div style="display:flex;justify-content:space-between;align-items:start">
+            <div>
+              <h2 id="tool-name"></h2>
+              <p class="desc" id="tool-desc"></p>
+            </div>
+          </div>
+          <form id="tool-form" onsubmit="return executeTool(event)">
+            <div class="form-row" id="tool-inputs"></div>
+            <div style="display:flex;gap:8px;margin-top:6px">
+              <button type="submit" id="execute-btn">Execute</button>
+              <button type="button" id="clear-btn" onclick="clearResult()" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-dim);font-size:11px;cursor:pointer">Clear</button>
+            </div>
+          </form>
+        </div>
+
+        <section id="result">
+          <div id="result-toolbar">
+            <span>Result: <span class="cmd-name" id="last-cmd">—</span></span>
+            <span id="result-status"></span>
+          </div>
+          <div id="result-content">
+            <span class="placeholder">Select a tool from the sidebar or click a quick action above.</span>
+          </div>
+        </section>
+      </div>
+
+      <div id="state-panel">
+        <div class="sp-header">Debugger State</div>
+        <div style="padding:0"><button id="state-refresh" onclick="refreshState()">⟳ Refresh</button></div>
+        <div id="state-content">
+          <div class="sp-section">
+            <div class="sp-section-title" onclick="toggleSection(this)">Registers <span>▼</span></div>
+            <div class="sp-section-body" id="state-regs"><span style="color:var(--text-dim)">Load a program first.</span></div>
+          </div>
+          <div class="sp-section">
+            <div class="sp-section-title" onclick="toggleSection(this)">Stack (top 8) <span>▼</span></div>
+            <div class="sp-section-body collapsed" id="state-stack"><span style="color:var(--text-dim)">—</span></div>
+          </div>
+          <div class="sp-section">
+            <div class="sp-section-title" onclick="toggleSection(this)">Current Insn <span>▼</span></div>
+            <div class="sp-section-body" id="state-disasm"><span style="color:var(--text-dim)">—</span></div>
+          </div>
+          <div class="sp-section">
+            <div class="sp-section-title" onclick="toggleSection(this)">Backtrace <span>▼</span></div>
+            <div class="sp-section-body collapsed" id="state-bt"><span style="color:var(--text-dim)">—</span></div>
+          </div>
         </div>
       </div>
-      <form id="tool-form" onsubmit="return executeTool(event)">
-        <div class="form-row" id="tool-inputs"></div>
-        <div style="display:flex;gap:8px;margin-top:6px">
-          <button type="submit" id="execute-btn">Execute</button>
-          <button type="button" id="clear-btn" onclick="clearResult()" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-dim);font-size:11px;cursor:pointer">Clear</button>
-        </div>
-      </form>
-    </div>
-
-    <section id="result">
-      <div id="result-toolbar">
-        <span>Result: <span class="cmd-name" id="last-cmd">—</span></span>
-        <span id="result-status"></span>
-      </div>
-      <div id="result-content">
-        <span class="placeholder">Select a tool from the sidebar or click a quick action above.</span>
-      </div>
-    </section>
-  </div>
-
-  <div id="state-panel">
-    <div class="sp-header">Debugger State</div>
-    <div style="padding:0"><button id="state-refresh" onclick="refreshState()">⟳ Refresh</button></div>
-    <div id="state-content">
-      <div class="sp-section">
-        <div class="sp-section-title" onclick="toggleSection(this)">Registers <span>▼</span></div>
-        <div class="sp-section-body" id="state-regs"><span style="color:var(--text-dim)">Load a program first.</span></div>
-      </div>
-      <div class="sp-section">
-        <div class="sp-section-title" onclick="toggleSection(this)">Stack (top 8) <span>▼</span></div>
-        <div class="sp-section-body collapsed" id="state-stack"><span style="color:var(--text-dim)">—</span></div>
-      </div>
-      <div class="sp-section">
-        <div class="sp-section-title" onclick="toggleSection(this)">Current Insn <span>▼</span></div>
-        <div class="sp-section-body" id="state-disasm"><span style="color:var(--text-dim)">—</span></div>
-      </div>
-      <div class="sp-section">
-        <div class="sp-section-title" onclick="toggleSection(this)">Backtrace <span>▼</span></div>
-        <div class="sp-section-body collapsed" id="state-bt"><span style="color:var(--text-dim)">—</span></div>
-      </div>
     </div>
   </div>
+
+  <div id="tab-history" class="tab-pane"></div>
+  <div id="tab-sessions" class="tab-pane"></div>
+  <div id="tab-state" class="tab-pane"></div>
 </div>
+
+<div id="toast"></div>
 
 <script>
 let toolCache = {};
@@ -610,7 +813,7 @@ function isStateChanging(name) {
   const changing = ['edb_run','edb_continue','edb_step_into','edb_step_over','edb_pause',
     'edb_step_out','edb_restart','edb_step_instruction','edb_reverse_step',
     'edb_reverse_continue','edb_continue_to','edb_set_register','edb_write_memory',
-    'edb_load_program','edb_kill_process','edb_jump_to_address'];
+    'edb_load_program','edb_kill_process','edb_jump_to_address', 'edb_session_load'];
   return changing.includes(name);
 }
 
@@ -631,7 +834,6 @@ async function refreshState() {
       btn.disabled = false;
       return;
     }
-    // Parse registers
     let regsHtml = '';
     try {
       const regData = JSON.parse(data.registers.result);
@@ -644,7 +846,6 @@ async function refreshState() {
           }
         }
       } else {
-        // Flat register map
         for (const r of mainRegs) {
           if (regData[r] !== undefined) {
             const val = typeof regData[r] === 'number' ? '0x' + regData[r].toString(16) : regData[r];
@@ -694,7 +895,119 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Keyboard shortcuts
+/* --- Tab Switching --- */
+function switchTab(name) {
+  document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const pane = document.getElementById('tab-' + name);
+  if (pane) pane.classList.add('active');
+  const btn = document.querySelector(`.tab-btn[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+}
+
+/* --- History --- */
+function clearHistory() {
+  fetch('/api/history/clear', { method: 'POST' })
+    .then(r => r.json())
+    .then(() => {
+      const tab = document.getElementById('tab-history');
+      htmx.trigger('#tab-history', 'htmx:load');
+      tab.innerHTML = '<div class="tab-padded"><p style="color:var(--text-dim)">No tool calls recorded yet.</p></div>';
+    });
+}
+
+function reRunTool(name) {
+  switchTab('console');
+  quickAction(name);
+}
+
+/* --- Sessions --- */
+function saveSession() {
+  const input = document.getElementById('session-name');
+  const name = input.value.trim();
+  if (!name) { showToast('Enter a session name', 'error'); return; }
+  fetch('/api/sessions/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.isError) {
+      showToast('Save failed: ' + data.result, 'error');
+    } else {
+      showToast('Session "' + name + '" saved', 'success');
+      input.value = '';
+      htmx.trigger('#tab-sessions', 'load');
+      document.querySelector('.tab-btn[data-tab="sessions"]').click();
+    }
+  })
+  .catch(err => showToast('Error: ' + String(err), 'error'));
+}
+
+function loadSession(name) {
+  switchTab('console');
+  fetch('/api/sessions/load/' + encodeURIComponent(name), {
+    method: 'POST'
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.isError) {
+      showToast('Load failed: ' + data.result, 'error');
+    } else {
+      showToast('Session "' + name + '" loaded', 'success');
+      refreshState();
+    }
+  })
+  .catch(err => showToast('Error: ' + String(err), 'error'));
+}
+
+function deleteSession(name) {
+  if (!confirm('Delete session "' + name + '"?')) return;
+  fetch('/api/sessions/' + encodeURIComponent(name), {
+    method: 'DELETE'
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.ok) {
+      showToast('Session "' + name + '" deleted', 'success');
+      document.querySelector('.tab-btn[data-tab="sessions"]').click();
+    } else {
+      showToast('Delete failed', 'error');
+    }
+  })
+  .catch(err => showToast('Error: ' + String(err), 'error'));
+}
+
+/* --- State Tab Refresh --- */
+function refreshStateTab() {
+  const statePane = document.getElementById('tab-state');
+  htmx.ajax('GET', '/api/tabs/state', { target: '#tab-state', swap: 'innerHTML' });
+}
+
+/* --- Toast --- */
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (type || 'success');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* --- Re-trigger htmx on tab re-click --- */
+document.querySelectorAll('.tab-btn[hx-get]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const targetId = this.getAttribute('hx-target');
+    if (targetId) {
+      const target = document.querySelector(targetId);
+      if (target && target.children.length === 0) {
+        htmx.trigger(this, 'click');
+      }
+    }
+  });
+});
+
+/* Keyboard shortcuts */
 document.addEventListener('keydown', function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     const form = document.getElementById('tool-form');

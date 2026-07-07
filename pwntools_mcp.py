@@ -92,6 +92,29 @@ class BuildRopChainParams(BaseModel):
     args: Optional[str] = Field(default="", description="Arguments for the target call (e.g., '/bin/sh')")
 
 
+class EncodeHexParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    data: str = Field(..., description="Raw bytes or hex string to encode (use \\x escapes for non-printable)", min_length=1)
+
+
+class DecodeHexParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    hex_str: str = Field(..., description="Hex string to decode (e.g., 'deadbeef' or 'de ad be ef')", min_length=1)
+
+
+class AlignParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: int = Field(..., description="Value to align (address or size)")
+    alignment: int = Field(default=0x1000, description="Alignment boundary (default: 0x1000/page)", ge=2, le=0x1000000)
+
+
+class BitOpParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: int = Field(..., description="Integer value to rotate")
+    shift: int = Field(..., description="Number of bits to rotate (1-63)", ge=1, le=63)
+    bits: int = Field(default=64, description="Bit width: 8, 16, 32, or 64", ge=8, le=64)
+
+
 def _import_pwn():
     import pwn
     pwn.context.log_level = "error"
@@ -1267,6 +1290,12 @@ class EntropyParams(BaseModel):
     size: Optional[int] = Field(default=None, description="Size in bytes (default: entire file)")
 
 
+class ElfRelocsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    type_filter: str = Field(default="all", description="Relocation type: all, got, plt, absolute, relative")
+
+
 @mcp.tool(
     name="pwntools_elf_sections",
     annotations={"title": "Detailed ELF Sections", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
@@ -1536,5 +1565,246 @@ async def pwntools_entropy(params: EntropyParams) -> str:
         return "\n".join(result)
     except FileNotFoundError:
         return f"Error: file not found: {params.path}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_got",
+    annotations={"title": "Parse ELF GOT Entries", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_got(params: ElfPath) -> str:
+    '''Parse Global Offset Table (GOT) entries from an ELF binary.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        got = elf.got
+        if not got:
+            return f"No GOT entries found in {params.path}"
+        result = [f"GOT entries in {params.path}:", "",
+                  f"  {'Symbol':25s} {'Address':18s}",
+                  f"  {'-'*25} {'-'*18}"]
+        for name, addr in sorted(got.items(), key=lambda x: x[1]):
+            result.append(f"  {name:25s} {hex(addr):18s}")
+        result.append("")
+        result.append(f"Total: {len(got)} entries")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_plt",
+    annotations={"title": "Parse ELF PLT Entries", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_plt(params: ElfPath) -> str:
+    '''Parse Procedure Linkage Table (PLT) entries from an ELF binary.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        plt = elf.plt
+        if not plt:
+            return f"No PLT entries found in {params.path}"
+        result = [f"PLT entries in {params.path}:", "",
+                  f"  {'Symbol':25s} {'Address':18s}",
+                  f"  {'-'*25} {'-'*18}"]
+        for name, addr in sorted(plt.items(), key=lambda x: x[1]):
+            result.append(f"  {name:25s} {hex(addr):18s}")
+        result.append("")
+        result.append(f"Total: {len(plt)} entries")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_segments",
+    annotations={"title": "List ELF Program Headers", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_segments(params: ElfPath) -> str:
+    '''List ELF program headers (segments): type, flags, offset, vaddr, filesz, memsz.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        seg_types = {
+            0: "NULL", 1: "LOAD", 2: "DYNAMIC", 3: "INTERP", 4: "NOTE",
+            5: "SHLIB", 6: "PHDR", 7: "TLS", 0x6474e550: "GNU_EH_FRAME",
+            0x6474e551: "GNU_STACK", 0x6474e552: "GNU_RELRO",
+            0x6474e553: "GNU_PROPERTY",
+        }
+        result = [f"Program headers in {params.path}:", "",
+                  f"  {'Type':16s} {'Flags':8s} {'Offset':12s} {'VAddr':18s} {'FileSz':10s} {'MemSz':10s} {'Align':10s}",
+                  f"  {'-'*16} {'-'*8} {'-'*12} {'-'*18} {'-'*10} {'-'*10} {'-'*10}"]
+        for seg in elf.segments:
+            h = seg.header
+            stype = seg_types.get(h.p_type if isinstance(h.p_type, int) else 0, hex(h.p_type) if isinstance(h.p_type, int) else str(h.p_type))
+            flags = ""
+            if h.p_flags & 4: flags += "R"
+            if h.p_flags & 2: flags += "W"
+            if h.p_flags & 1: flags += "X"
+            result.append(f"  {stype:16s} {flags:8s} {hex(h.p_offset):12s} {hex(h.p_vaddr):18s} {hex(h.p_filesz):10s} {hex(h.p_memsz):10s} {hex(h.p_align):10s}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_relocs",
+    annotations={"title": "Show ELF Relocations", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_relocs(params: ElfRelocsParams) -> str:
+    '''Show ELF relocation entries (GOT/PLT fixups and absolute relocations).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        relocs = list(elf.relocs) if hasattr(elf, "relocs") and elf.relocs else []
+        if not relocs:
+            return f"No relocations found in {params.path}"
+        filtered = []
+        for r in relocs:
+            rtype = str(r.type)
+            if params.type_filter == "got" and "GLOB_DAT" not in rtype and "JUMP_SLOT" not in rtype:
+                continue
+            if params.type_filter == "plt" and "JUMP_SLOT" not in rtype:
+                continue
+            if params.type_filter == "absolute" and "RELATIVE" not in rtype:
+                continue
+            if params.type_filter == "relative" and "RELATIVE" not in rtype:
+                continue
+            filtered.append(r)
+        if not filtered:
+            return f"No matching relocations for filter '{params.type_filter}'"
+        result = [f"Relocations in {params.path}:", "",
+                  f"  {'Address':18s} {'Type':30s} {'Symbol':25s} {'Addend':12s}",
+                  f"  {'-'*18} {'-'*30} {'-'*25} {'-'*12}"]
+        for r in filtered:
+            sym = r.symbol if hasattr(r, "symbol") else r.symbolname if hasattr(r, "symbolname") else ""
+            addend = hex(r.addend) if hasattr(r, "addend") and r.addend else ""
+            result.append(f"  {hex(r.address):18s} {str(r.type):30s} {str(sym):25s} {addend:12s}")
+        result.append("")
+        result.append(f"Total: {len(filtered)} relocation{'s' if len(filtered) != 1 else ''}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_notes",
+    annotations={"title": "Show ELF Notes", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_notes(params: ElfPath) -> str:
+    '''Show ELF notes: build ID, ABI tag, property notes.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        notes = elf.notes if hasattr(elf, "notes") else []
+        if notes:
+            result = [f"ELF notes in {params.path}:", ""]
+            for n in notes:
+                ntype = str(n.n_type) if hasattr(n, "n_type") else ""
+                ndesc = str(n.n_desc) if hasattr(n, "n_desc") else ""
+                result.append(f"  Type: {ntype}")
+                result.append(f"  Desc: {ndesc}")
+                result.append("")
+            return "\n".join(result)
+        else:
+            return f"No notes found in {params.path}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_enhex",
+    annotations={"title": "Hex Encode Bytes", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_enhex(params: EncodeHexParams) -> str:
+    '''Encode raw bytes to hexadecimal string. Supports \\x escapes.'''
+    try:
+        data = params.data.encode("latin-1") if "\\x" in params.data else params.data.encode()
+        hex_str = data.hex()
+        formatted = " ".join(hex_str[i:i+2] for i in range(0, len(hex_str), 2))
+        return f"Raw ({len(data)} bytes): {params.data}\nHex ({len(hex_str)//2} bytes): {formatted}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_unhex",
+    annotations={"title": "Hex Decode to Bytes", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_unhex(params: DecodeHexParams) -> str:
+    '''Decode hexadecimal string back to raw bytes.'''
+    try:
+        clean = params.hex_str.replace(" ", "").replace("0x", "").replace("\\x", "")
+        data = bytes.fromhex(clean)
+        printable = "".join(chr(b) if 32 <= b < 127 else f"\\x{b:02x}" for b in data)
+        return f"Hex: {params.hex_str}\nDecoded ({len(data)} bytes): {data!r}\nPrintable: {printable}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_align",
+    annotations={"title": "Calculate Alignment", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_align(params: AlignParams) -> str:
+    '''Calculate aligned value (up/down) for a given alignment boundary.'''
+    try:
+        aligned_down = params.value & ~(params.alignment - 1)
+        aligned_up = (params.value + params.alignment - 1) & ~(params.alignment - 1)
+        pages_used = (params.value + params.alignment - 1) // params.alignment
+        return (
+            f"Alignment calculation for {hex(params.value)} (alignment: {hex(params.alignment)}):\n"
+            f"  Original:     {hex(params.value)} ({params.value})\n"
+            f"  Aligned down: {hex(aligned_down)} ({aligned_down})\n"
+            f"  Aligned up:   {hex(aligned_up)} ({aligned_up})\n"
+            f"  Pages used:   {pages_used}"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_rol",
+    annotations={"title": "Rotate Left (ROL)", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_rol(params: BitOpParams) -> str:
+    '''Rotate an integer value left by N bits.'''
+    try:
+        mask = (1 << params.bits) - 1
+        result_val = ((params.value << params.shift) | (params.value >> (params.bits - params.shift))) & mask
+        return (
+            f"ROL {params.bits}-bit, shift {params.shift}:\n"
+            f"  Input:  {hex(params.value)} ({params.value})\n"
+            f"  Output: {hex(result_val)} ({result_val})"
+        )
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_ror",
+    annotations={"title": "Rotate Right (ROR)", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_ror(params: BitOpParams) -> str:
+    '''Rotate an integer value right by N bits.'''
+    try:
+        mask = (1 << params.bits) - 1
+        result_val = ((params.value >> params.shift) | (params.value << (params.bits - params.shift))) & mask
+        return (
+            f"ROR {params.bits}-bit, shift {params.shift}:\n"
+            f"  Input:  {hex(params.value)} ({params.value})\n"
+            f"  Output: {hex(result_val)} ({result_val})"
+        )
     except Exception as e:
         return f"Error: {e}"

@@ -2,6 +2,8 @@ import sys
 import os
 import asyncio
 import json
+import datetime
+import html
 from pathlib import Path
 from contextlib import asynccontextmanager
 from collections import OrderedDict
@@ -15,6 +17,8 @@ from fastapi.templating import Jinja2Templates
 import uvicorn
 
 client = MCPClient()
+history: list = []
+SESSIONS_DIR = Path("/tmp/edb-sessions")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 CATEGORIES = OrderedDict([
@@ -197,9 +201,24 @@ async def call_tool(tool_name: str, request: Request):
     try:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, client.call_tool, tool_name, args)
+        history.append({
+            "tool_name": tool_name,
+            "args": dict(args),
+            "result": str(result.get("result", result)),
+            "is_error": result.get("isError", False),
+            "timestamp": datetime.datetime.now().isoformat()
+        })
         return result
     except Exception as e:
-        return {"result": f"Error: {e}", "isError": True}
+        err = {"result": f"Error: {e}", "isError": True}
+        history.append({
+            "tool_name": tool_name,
+            "args": dict(args),
+            "result": err["result"],
+            "is_error": True,
+            "timestamp": datetime.datetime.now().isoformat()
+        })
+        return err
 
 
 @app.get("/api/state")
@@ -221,6 +240,176 @@ async def get_state():
         }
     except Exception as e:
         return {"error": True, "message": str(e)}
+
+
+@app.get("/api/history")
+async def get_history():
+    return history
+
+
+@app.post("/api/history/clear")
+async def clear_history():
+    history.clear()
+    return {"ok": True}
+
+
+@app.get("/api/sessions")
+async def list_sessions():
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    files = sorted(SESSIONS_DIR.glob("*.json"))
+    sessions = []
+    for f in files:
+        mtime = datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        sessions.append({"name": f.stem, "mtime": mtime})
+    return {"sessions": sessions}
+
+
+@app.post("/api/sessions/save")
+async def save_session(request: Request):
+    body = await request.json()
+    name = body.get("name", "unnamed")
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_session_save", {"name": name})
+        SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+        marker = SESSIONS_DIR / f"{name}.json"
+        marker.write_text(json.dumps({
+            "name": name,
+            "saved_at": datetime.datetime.now().isoformat(),
+            "result": str(result)
+        }))
+        return result
+    except Exception as e:
+        return {"result": f"Error: {e}", "isError": True}
+
+
+@app.post("/api/sessions/load/{name}")
+async def load_session(name: str):
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_session_load", {"name": name})
+        return result
+    except Exception as e:
+        return {"result": f"Error: {e}", "isError": True}
+
+
+@app.delete("/api/sessions/{name}")
+async def delete_session(name: str):
+    session_file = SESSIONS_DIR / f"{name}.json"
+    if session_file.exists():
+        session_file.unlink()
+        return {"ok": True}
+    return JSONResponse({"error": "Session not found"}, status_code=404)
+
+
+@app.get("/api/tabs/{tab_name}")
+async def get_tab(tab_name: str):
+    if tab_name == "history":
+        return HTMLResponse(_render_history_tab())
+    elif tab_name == "sessions":
+        return HTMLResponse(await _render_sessions_tab())
+    elif tab_name == "state":
+        return HTMLResponse(await _render_state_tab())
+    return HTMLResponse("")
+
+
+def _render_history_tab() -> str:
+    parts = ['<div class="tab-padded">']
+    parts.append('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">')
+    parts.append('<h2 style="font-size:16px;font-weight:600">Call History</h2>')
+    if history:
+        parts.append('<button onclick="clearHistory()" style="padding:4px 12px;background:none;border:1px solid var(--error);border-radius:4px;color:var(--error);font-size:11px;cursor:pointer">Clear All</button>')
+    parts.append('</div>')
+    if not history:
+        parts.append('<p style="color:var(--text-dim)">No tool calls recorded yet.</p>')
+    else:
+        parts.append('<div class="history-list">')
+        for entry in reversed(history):
+            cls = "history-entry error" if entry.get("is_error") else "history-entry"
+            result_preview = str(entry.get("result", ""))
+            if len(result_preview) > 200:
+                result_preview = result_preview[:200] + "..."
+            parts.append(f'''<div class="{cls}">
+                <div class="history-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
+                    <span class="history-tool">{html.escape(entry.get("tool_name", ""))}</span>
+                    <span class="history-time">{html.escape(entry.get("timestamp", ""))}</span>
+                    <span class="history-arrow">&#9660;</span>
+                </div>
+                <div class="history-body collapsed">
+                    <pre>{html.escape(str(entry.get("result", "")))}</pre>
+                    <button onclick="reRunTool(\'{html.escape(entry.get("tool_name", ""))}\')" class="rerun-btn">Re-run</button>
+                </div>
+            </div>''')
+        parts.append('</div>')
+    parts.append('</div>')
+    return "\n".join(parts)
+
+
+async def _render_sessions_tab() -> str:
+    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    files = sorted(SESSIONS_DIR.glob("*.json"))
+    parts = ['<div class="tab-padded">']
+    parts.append('<h2 style="font-size:16px;font-weight:600;margin-bottom:12px">Saved Sessions</h2>')
+    parts.append('''<div class="session-save-row">
+        <input id="session-name" type="text" placeholder="Session name..." class="session-input">
+        <button onclick="saveSession()" class="btn-primary">Save Current</button>
+    </div>''')
+    if not files:
+        parts.append('<p style="color:var(--text-dim)">No saved sessions. Use the input above to save one.</p>')
+    else:
+        parts.append('<div class="session-list">')
+        for f in files:
+            mtime = datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+            safe_name = html.escape(f.stem)
+            parts.append(f'''<div class="session-entry">
+                <div class="session-info">
+                    <span class="session-name">{safe_name}</span>
+                    <span class="session-time">{mtime}</span>
+                </div>
+                <div class="session-actions">
+                    <button onclick="loadSession('{safe_name}')" class="btn-small btn-accent">Load</button>
+                    <button onclick="deleteSession('{safe_name}')" class="btn-small btn-danger">Delete</button>
+                </div>
+            </div>''')
+        parts.append('</div>')
+    parts.append('</div>')
+    return "\n".join(parts)
+
+
+async def _render_state_tab() -> str:
+    try:
+        loop = asyncio.get_event_loop()
+        regs = await loop.run_in_executor(None, client.call_tool, "edb_get_registers", {})
+        stack = await loop.run_in_executor(None, client.call_tool, "edb_get_stack", {})
+        disasm = await loop.run_in_executor(None, client.call_tool, "edb_get_current_instruction", {})
+        bt = await loop.run_in_executor(None, client.call_tool, "edb_get_backtrace", {})
+    except Exception as e:
+        return f'<div class="tab-padded"><p class="error">Error: {html.escape(str(e))}</p></div>'
+
+    return f'''<div class="tab-padded">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <h2 style="font-size:16px;font-weight:600">Debugger State</h2>
+            <button onclick="refreshStateTab()" class="btn-small btn-accent">⟳ Refresh</button>
+        </div>
+        <div class="state-tab-grid">
+            <div class="state-tab-card">
+                <h3>Registers</h3>
+                <pre>{html.escape(str(regs.get("result", "")))}</pre>
+            </div>
+            <div class="state-tab-card">
+                <h3>Stack</h3>
+                <pre>{html.escape(str(stack.get("result", "")))}</pre>
+            </div>
+            <div class="state-tab-card">
+                <h3>Current Instruction</h3>
+                <pre>{html.escape(str(disasm.get("result", "")))}</pre>
+            </div>
+            <div class="state-tab-card">
+                <h3>Backtrace</h3>
+                <pre>{html.escape(str(bt.get("result", "")))}</pre>
+            </div>
+        </div>
+    </div>'''
 
 
 def main():
