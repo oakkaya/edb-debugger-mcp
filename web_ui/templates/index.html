@@ -355,6 +355,12 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 .reg-row .reg-name { color: var(--text-dim); }
 .reg-row .reg-val { color: var(--accent); font-size: 10px; }
 .reg-row.highlight { background: rgba(88,166,255,0.06); border-radius: 2px; }
+.reg-row.diff-up { background: rgba(63,185,80,0.12); border-radius: 2px; }
+.reg-row.diff-down { background: rgba(248,81,73,0.12); border-radius: 2px; }
+.reg-row .diff-arrow { font-size: 9px; margin-left: auto; }
+.reg-row .diff-arrow.up { color: var(--success); }
+.reg-row .diff-arrow.down { color: var(--error); }
+.reg-row .reg-old { color: var(--text-dim); font-size: 9px; text-decoration: line-through; margin-left: 4px; }
 
 /* State Refresh Button */
 #state-refresh {
@@ -532,6 +538,32 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 #toast.success { background: var(--success); color: #000; }
 #toast.error { background: var(--error); color: #fff; }
 
+/* Memory Hex Dump */
+.hex-row { display: flex; align-items: center; gap: 0; }
+.hex-row:hover { background: rgba(88,166,255,0.04); }
+.hex-addr { color: var(--text-dim); width: 80px; flex-shrink: 0; user-select: none; }
+.hex-bytes { color: var(--text); flex-shrink: 0; letter-spacing: 0.5px; }
+.hex-ascii { color: var(--success); margin-left: 12px; flex-shrink: 0; }
+.hex-ascii .dot { color: var(--text-dim); }
+.hex-sep { color: var(--border); margin: 0 6px; user-select: none; }
+
+@keyframes pulse-bg {
+  0%, 100% { background: transparent; }
+  50% { background: rgba(88,166,255,0.08); }
+}
+.hex-row.fresh { animation: pulse-bg 0.6s ease-in-out; }
+
+.live-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.live-dot.active { background: var(--success); animation: pulse 1.5s infinite; }
+.live-dot.inactive { background: var(--text-dim); }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
 @media (max-width: 900px) {
   #state-panel { display: none; }
   #sidebar { width: 160px; min-width: 160px; }
@@ -550,6 +582,7 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 <nav id="tab-bar">
   <button class="tab-btn active" data-tab="console" onclick="switchTab('console')">Console</button>
   <button class="tab-btn" data-tab="state" hx-get="/api/tabs/state" hx-target="#tab-state" hx-trigger="click once" onclick="switchTab('state')">State</button>
+  <button class="tab-btn" data-tab="memory" onclick="switchTab('memory'); setTimeout(initMemoryViewer, 50)">Memory</button>
   <button class="tab-btn" data-tab="history" hx-get="/api/tabs/history" hx-target="#tab-history" hx-trigger="click once" onclick="switchTab('history')">History</button>
   <button class="tab-btn" data-tab="sessions" hx-get="/api/tabs/sessions" hx-target="#tab-sessions" hx-trigger="click once" onclick="switchTab('sessions')">Sessions</button>
 </nav>
@@ -625,7 +658,12 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 
       <div id="state-panel">
         <div class="sp-header">Debugger State</div>
-        <div style="padding:0"><button id="state-refresh" onclick="refreshState()">⟳ Refresh</button></div>
+        <div style="display:flex;gap:4px;padding:2px 8px;align-items:center">
+          <button id="state-refresh" onclick="refreshState()" style="flex:1">⟳ Refresh</button>
+          <button id="live-btn" onclick="toggleLiveRefresh()" style="flex-shrink:0;padding:4px 8px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-dim);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <span class="live-dot inactive" id="live-dot"></span> Live
+          </button>
+        </div>
         <div id="state-content">
           <div class="sp-section">
             <div class="sp-section-title" onclick="toggleSection(this)">Registers <span>▼</span></div>
@@ -651,6 +689,25 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
   <div id="tab-history" class="tab-pane"></div>
   <div id="tab-sessions" class="tab-pane"></div>
   <div id="tab-state" class="tab-pane"></div>
+  <div id="tab-memory" class="tab-pane">
+    <div class="tab-padded" style="display:flex;flex-direction:column;height:100%">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-shrink:0">
+        <input id="mem-addr" type="text" value="0x400000" placeholder="Address (hex)" style="width:160px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
+        <input id="mem-size" type="number" value="256" min="16" max="4096" placeholder="Size" style="width:80px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
+        <button onclick="refreshMemoryView()" style="padding:6px 16px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer">⟳ Read</button>
+        <button onclick="refreshState()" style="padding:6px 16px;background:var(--code-bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer">⟳ Refresh State</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-shrink:0;align-items:center">
+        <label style="font-size:11px;color:var(--text-dim);display:flex;align-items:center;gap:4px">
+          <input type="checkbox" id="mem-auto-refresh" onchange="toggleMemoryAutoRefresh()"> Auto-refresh
+        </label>
+        <span style="font-size:10px;color:var(--text-dim)" id="mem-status">Idle</span>
+      </div>
+      <div id="mem-hexdump" style="flex:1;overflow:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:12px;line-height:1.5;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;padding:8px">
+        <span style="color:var(--text-dim)">Enter an address and click Read.</span>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="toast"></div>
@@ -659,6 +716,9 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 let toolCache = {};
 let stateVisible = true;
 let lastResult = '';
+let liveTimer = null;
+let prevRegs = {};
+let memAutoTimer = null;
 
 async function loadTools() {
   try {
@@ -817,56 +877,6 @@ function isStateChanging(name) {
   return changing.includes(name);
 }
 
-async function refreshState() {
-  const btn = document.getElementById('state-refresh');
-  btn.textContent = '⟳ Loading...';
-  btn.disabled = true;
-  try {
-    const resp = await fetch('/api/state');
-    const data = await resp.json();
-    if (data.error) {
-      document.getElementById('state-regs').innerHTML = '<span style="color:var(--text-dim)">No program loaded.</span>';
-      document.getElementById('state-stack').innerHTML = '<span style="color:var(--text-dim)">—</span>';
-      document.getElementById('state-disasm').innerHTML = '<span style="color:var(--text-dim)">—</span>';
-      document.getElementById('state-bt').innerHTML = '<span style="color:var(--text-dim)">—</span>';
-      document.getElementById('state-indicator').textContent = 'Idle';
-      btn.textContent = '⟳ Refresh';
-      btn.disabled = false;
-      return;
-    }
-    let regsHtml = '';
-    try {
-      const regData = JSON.parse(data.registers.result);
-      const mainRegs = ['rax','rbx','rcx','rdx','rsi','rdi','rsp','rbp','rip','r8','r9','r10','r11','r12','r13','r14','r15'];
-      if (regData.registers) {
-        for (const r of mainRegs) {
-          if (regData.registers[r] !== undefined) {
-            const val = typeof regData.registers[r] === 'number' ? '0x' + regData.registers[r].toString(16) : regData.registers[r];
-            regsHtml += `<div class="reg-row"><span class="reg-name">${r}</span><span class="reg-val">${val}</span></div>`;
-          }
-        }
-      } else {
-        for (const r of mainRegs) {
-          if (regData[r] !== undefined) {
-            const val = typeof regData[r] === 'number' ? '0x' + regData[r].toString(16) : regData[r];
-            regsHtml += `<div class="reg-row"><span class="reg-name">${r}</span><span class="reg-val">${val}</span></div>`;
-          }
-        }
-      }
-      if (!regsHtml) regsHtml = '<span style="color:var(--text-dim)">Parsing error</span>';
-    } catch (e) {
-      regsHtml = escapeHtml(data.registers.result || '(no data)');
-    }
-    document.getElementById('state-regs').innerHTML = regsHtml;
-    document.getElementById('state-stack').innerHTML = escapeHtml(data.stack.result || '(no data)').slice(0, 500);
-    document.getElementById('state-disasm').innerHTML = escapeHtml(data.disasm.result || '(no data)');
-    document.getElementById('state-bt').innerHTML = escapeHtml(data.backtrace.result || '(no data)').slice(0, 500);
-    document.getElementById('state-indicator').textContent = 'Running';
-  } catch (e) {
-    document.getElementById('state-regs').innerHTML = '<span class="error">Error: ' + escapeHtml(String(e)) + '</span>';
-  }
-  btn.textContent = '⟳ Refresh';
-  btn.disabled = false;
 }
 
 function toggleState() {
@@ -1006,6 +1016,127 @@ document.querySelectorAll('.tab-btn[hx-get]').forEach(btn => {
     }
   });
 });
+
+/* --- Memory Viewer --- */
+async function refreshMemoryView() {
+  const addr = document.getElementById('mem-addr').value.trim();
+  const size = parseInt(document.getElementById('mem-size').value, 10) || 256;
+  const dumpDiv = document.getElementById('mem-hexdump');
+  const status = document.getElementById('mem-status');
+  status.textContent = 'Reading...';
+  try {
+    const resp = await fetch(`/api/memory/hex?address=${encodeURIComponent(addr)}&size=${size}`);
+    const data = await resp.json();
+    if (data.error) {
+      dumpDiv.innerHTML = '<span class="error">Error: ' + escapeHtml(data.message) + '</span>';
+      status.textContent = 'Error';
+      return;
+    }
+    if (!data.rows || data.rows.length === 0) {
+      dumpDiv.innerHTML = '<span style="color:var(--text-dim)">No data at this address.</span>';
+      status.textContent = 'Empty';
+      return;
+    }
+    let html = '<div style="display:flex;align-items:center;padding-bottom:4px;margin-bottom:4px;border-bottom:1px solid var(--border);color:var(--text-dim);font-size:10px;font-weight:600">';
+    html += '<span style="width:80px">Address</span>';
+    html += '<span>Hex bytes</span>';
+    html += '<span style="margin-left:auto;margin-right:12px">ASCII</span>';
+    html += '</div>';
+    for (const row of data.rows) {
+      html += '<div class="hex-row">';
+      html += '<span class="hex-addr">' + escapeHtml(row.addr) + '</span>';
+      html += '<span class="hex-bytes">' + escapeHtml(row.hex) + '</span>';
+      html += '<span class="hex-sep">|</span>';
+      html += '<span class="hex-ascii">';
+      for (const ch of row.ascii) {
+        if (ch === '.') html += '<span class="dot">.</span>';
+        else html += escapeHtml(ch);
+      }
+      html += '</span></div>';
+    }
+    dumpDiv.innerHTML = html;
+    status.textContent = data.rows.length + ' rows';
+  } catch (e) {
+    dumpDiv.innerHTML = '<span class="error">Error: ' + escapeHtml(String(e)) + '</span>';
+    status.textContent = 'Error';
+  }
+}
+
+function toggleMemoryAutoRefresh() {
+  const enabled = document.getElementById('mem-auto-refresh').checked;
+  if (memAutoTimer) { clearInterval(memAutoTimer); memAutoTimer = null; }
+  if (enabled) memAutoTimer = setInterval(refreshMemoryView, 3000);
+}
+
+function initMemoryViewer() {
+  refreshMemoryView();
+}
+
+/* --- Live Register Monitor --- */
+function toggleLiveRefresh() {
+  if (liveTimer) {
+    clearInterval(liveTimer);
+    liveTimer = null;
+    document.getElementById('live-dot').className = 'live-dot inactive';
+    document.getElementById('live-btn').style.color = 'var(--text-dim)';
+    return;
+  }
+  document.getElementById('live-dot').className = 'live-dot active';
+  document.getElementById('live-btn').style.color = 'var(--success)';
+  refreshState(); // immediate first fetch
+  liveTimer = setInterval(refreshState, 2000);
+}
+
+async function refreshState() {
+  const btn = document.getElementById('state-refresh');
+  btn.textContent = '⟳ Loading...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/state/v2');
+    const data = await resp.json();
+    if (data.error) {
+      document.getElementById('state-regs').innerHTML = '<span style="color:var(--text-dim)">No program loaded.</span>';
+      document.getElementById('state-stack').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-disasm').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-bt').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-indicator').textContent = 'Idle';
+      btn.textContent = '⟳ Refresh';
+      btn.disabled = false;
+      return;
+    }
+    let regsHtml = '';
+    try {
+      const regData = JSON.parse(data.registers.result);
+      const mainRegs = ['rax','rbx','rcx','rdx','rsi','rdi','rsp','rbp','rip','r8','r9','r10','r11','r12','r13','r14','r15'];
+      const regsInner = regData.registers || regData;
+      const diffs = data.registers.diffs || {};
+      for (const r of mainRegs) {
+        if (regsInner[r] !== undefined) {
+          const val = typeof regsInner[r] === 'number' ? '0x' + regsInner[r].toString(16) : regsInner[r];
+          let cls = 'reg-row';
+          let arrow = '';
+          if (diffs[r]) {
+            cls += ' diff-up';
+            arrow = '<span class="diff-arrow up">▲</span>';
+          }
+          regsHtml += `<div class="${cls}"><span class="reg-name">${r}</span><span class="reg-val">${val}</span>${arrow}</div>`;
+        }
+      }
+      if (!regsHtml) regsHtml = '<span style="color:var(--text-dim)">Parsing error</span>';
+    } catch (e) {
+      regsHtml = escapeHtml(data.registers.result || '(no data)');
+    }
+    document.getElementById('state-regs').innerHTML = regsHtml;
+    document.getElementById('state-stack').innerHTML = escapeHtml(data.stack.result || '(no data)').slice(0, 500);
+    document.getElementById('state-disasm').innerHTML = escapeHtml(data.disasm.result || '(no data)');
+    document.getElementById('state-bt').innerHTML = escapeHtml(data.backtrace.result || '(no data)').slice(0, 500);
+    document.getElementById('state-indicator').textContent = 'Running';
+  } catch (e) {
+    document.getElementById('state-regs').innerHTML = '<span class="error">Error: ' + escapeHtml(String(e)) + '</span>';
+  }
+  btn.textContent = '⟳ Refresh';
+  btn.disabled = false;
+}
 
 /* Keyboard shortcuts */
 document.addEventListener('keydown', function(e) {

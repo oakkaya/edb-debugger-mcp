@@ -4,6 +4,7 @@ import asyncio
 import json
 import datetime
 import html
+import re
 from pathlib import Path
 from contextlib import asynccontextmanager
 from collections import OrderedDict
@@ -11,7 +12,7 @@ from collections import OrderedDict
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "binaryninja_mcp"))
 from mcp_client import MCPClient
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -20,6 +21,7 @@ client = MCPClient()
 history: list = []
 SESSIONS_DIR = Path("/tmp/edb-sessions")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+_prev_registers = {}
 
 CATEGORIES = OrderedDict([
     ("Program", {
@@ -232,6 +234,74 @@ async def get_state():
         status = await loop.run_in_executor(None, client.call_tool, "edb_get_status", {})
         return {
             "registers": regs,
+            "stack": stack,
+            "disasm": disasm,
+            "backtrace": bt,
+            "status": status,
+            "error": False,
+        }
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
+@app.get("/api/memory/hex")
+async def memory_hex(address: str = Query("0x400000", description="Address to read"),
+                     size: int = Query(256, description="Bytes to read", ge=16, le=4096)):
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_read_memory", {"address": address, "count": size})
+        raw = result.get("result", "")
+        rows = []
+        for line in raw.split("\n"):
+            if not line.strip():
+                continue
+            parts = line.strip().split()
+            if len(parts) >= 2 and parts[0].startswith(("0x", "0X")):
+                addr = parts[0]
+                hex_bytes = " ".join(parts[1:])
+                # Build ASCII side
+                ascii_str = ""
+                for b in parts[1:]:
+                    try:
+                        val = int(b, 16)
+                        ascii_str += chr(val) if 32 <= val <= 126 else "."
+                    except ValueError:
+                        ascii_str += "."
+                rows.append({"addr": addr, "hex": hex_bytes, "ascii": ascii_str})
+        return {"rows": rows, "error": False}
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
+@app.get("/api/state/v2")
+async def get_state_v2():
+    global _prev_registers
+    try:
+        loop = asyncio.get_event_loop()
+        regs = await loop.run_in_executor(None, client.call_tool, "edb_get_registers", {})
+        stack = await loop.run_in_executor(None, client.call_tool, "edb_get_stack", {})
+        disasm = await loop.run_in_executor(None, client.call_tool, "edb_get_current_instruction", {})
+        bt = await loop.run_in_executor(None, client.call_tool, "edb_get_backtrace", {})
+        status = await loop.run_in_executor(None, client.call_tool, "edb_get_status", {})
+
+        reg_data = {}
+        try:
+            parsed = json.loads(regs.get("result", "{}"))
+            regs_inner = parsed.get("registers", parsed)
+            if isinstance(regs_inner, dict):
+                reg_data = regs_inner
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        diffs = {}
+        if _prev_registers and reg_data:
+            for k, v in reg_data.items():
+                if k in _prev_registers and str(_prev_registers[k]) != str(v):
+                    diffs[k] = {"old": str(_prev_registers[k]), "new": str(v)}
+        _prev_registers = dict(reg_data)
+
+        return {
+            "registers": {"result": regs.get("result", ""), "parsed": reg_data, "diffs": diffs},
             "stack": stack,
             "disasm": disasm,
             "backtrace": bt,
