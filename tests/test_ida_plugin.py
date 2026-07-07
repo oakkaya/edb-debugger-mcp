@@ -123,7 +123,7 @@ class TestModuleImports:
                 del sys.modules[key]
 
         with pytest.raises((NameError, ImportError)):
-            pass
+            import ida_mcp.ida_bridge  # noqa: F401 - should fail without IDA modules
 
 
 # ── Tests: IDAPython import (requires IDA) ──────────────────
