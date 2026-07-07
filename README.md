@@ -13,7 +13,7 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **197 debugging tools** (93 Pydantic models, 172 backend methods, ~8000 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **202 debugging tools** (97 Pydantic models, 177 backend methods, ~8300 LOC).
 
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (50 tools: ROP, shellcode, cyclic, ELF, pack, enhex, align, bitops, tubes), it becomes a complete AI-powered reverse engineering workstation.
 
@@ -741,6 +741,11 @@ python solve.py
 | `edb_compare_snapshot` | Save a full debugger snapshot (registers + memory) for later comparison. |
 | `edb_pipeline` | Load a binary, set breakpoint, run, and dump state in one call. |
 | `edb_export_state` | Export the complete debugger state as structured JSON. |
+| `edb_patch_history` | Show all memory patches made this session, or clear the history. |
+| `edb_binary_diff` | Compare the current loaded binary with its original on disk. |
+| `edb_remote_arch` | Detect the architecture of a connected remote GDB target. |
+| `edb_remote_info` | Show detailed information about the remote debugging target. |
+| `edb_exploit_generate` | Generate a BOF exploit payload: offset + ROP chain + shellcode. |
 
 ### File Utils (2 tools)
 
@@ -804,7 +809,7 @@ python solve.py
 | `pwntools_unhex` | Decode hexadecimal string back to raw bytes. |
 | `pwntools_unpack` | Unpack bytes into an integer (e.g., u64, u32, u16). |
 
-<!-- Total tools: 197 listed: 197 -->
+<!-- Total tools: 202 listed: 202 -->
 </details>
 
 ## License

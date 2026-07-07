@@ -3273,3 +3273,78 @@ async def edb_export_state() -> str:
     except GDBBackendError as e:
         return f"Error: {e}"
 
+
+@mcp.tool(
+    name="edb_patch_history",
+    annotations={"title": "Show/Clear Patch History", "readOnlyHint": True, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_patch_history(params: PatchHistoryInput) -> str:
+    '''Show all memory patches made this session, or clear the history.'''
+    try:
+        if params.clear:
+            return await backend.clear_patch_history()
+        return await backend.get_patch_history()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_binary_diff",
+    annotations={"title": "Compare Binary vs Original", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_binary_diff() -> str:
+    '''Compare the current loaded binary with its original on disk.'''
+    try:
+        return await backend.binary_diff()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_remote_arch",
+    annotations={"title": "Detect Remote Target Architecture", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_remote_arch() -> str:
+    '''Detect the architecture of a connected remote GDB target.'''
+    try:
+        return await backend.remote_arch()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_remote_info",
+    annotations={"title": "Show Remote Target Info", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_remote_info() -> str:
+    '''Show detailed information about the remote debugging target.'''
+    try:
+        return await backend.remote_info()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_exploit_generate",
+    annotations={"title": "Generate BOF Exploit", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_exploit_generate(params: ExploitGenerateInput) -> str:
+    '''Generate a buffer-overflow exploit payload: offset + ROP chain + shellcode.
+    Supports amd64 (ret2libc ROP), i386 (ret2libc), and aarch64 (shellcode).'''
+    try:
+        return await backend.exploit_generate(
+            params.binary, params.offset, params.cmd, params.save_path, params.arch
+        )
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+

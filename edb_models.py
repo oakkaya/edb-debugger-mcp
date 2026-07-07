@@ -483,3 +483,15 @@ class PipelineInput(BaseModel):
     breakpoint: Optional[str] = Field(default=None, description="Optional breakpoint (function or address)")
     args: Optional[str] = Field(default=None, description="Optional program arguments")
     dump_registers: bool = Field(default=True, description="Dump registers after stop")
+
+class PatchHistoryInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    clear: bool = Field(default=False, description="Clear patch history instead of showing")
+
+class ExploitGenerateInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    binary: str = Field(..., description="Path to vulnerable binary", min_length=1)
+    offset: int = Field(..., description="Buffer overflow offset to return address (bytes)", ge=1, le=65536)
+    cmd: str = Field(default="/bin/sh", description="Command to execute via shellcode/ROP")
+    save_path: str = Field(default="", description="Optional file path to save generated payload")
+    arch: str = Field(default="amd64", description="Target architecture: amd64, i386, or aarch64")

