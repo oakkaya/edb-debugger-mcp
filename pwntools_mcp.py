@@ -527,3 +527,371 @@ async def pwntools_build_rop_chain(params: BuildRopChainParams) -> str:
         }, indent=2)
     except Exception as e:
         return f"Error: {e}"
+
+
+class ChecksecParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+
+
+class ERopSearchParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    gadget_type: str = Field(default="all", description="Gadget category: all, syscall, stack_pivot, call, jump")
+
+
+class ShellcodeEncodeParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    hex_bytes: str = Field(..., description="Hex bytes of shellcode to encode (e.g. '31c048bb...')")
+    arch: str = Field(default="amd64", description="Architecture: amd64, i386, arm, aarch64")
+    encoder: str = Field(default="alphanumeric", description="Encoder: alphanumeric, null_free, xor")
+
+
+class ElfReadParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    section: Optional[str] = Field(default=None, description="Section name to read from (e.g. '.text')")
+    offset: Optional[int] = Field(default=None, description="Offset within section (if section given) or virtual address to read from")
+    size: int = Field(default=64, description="Number of bytes to read", ge=1, le=4096)
+
+
+class ConstGrepParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    search: str = Field(..., description="Search term for constant name or value", min_length=1)
+    arch: str = Field(default="amd64", description="Architecture: amd64, i386, arm, aarch64")
+    limit: int = Field(default=20, description="Maximum number of results", ge=1, le=100)
+
+
+@mcp.tool(
+    name="pwntools_checksec",
+    annotations={"title": "Check Binary Security Properties", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_checksec(params: ChecksecParams) -> str:
+    '''Check security properties of an ELF binary: RELRO, Canary, NX, PIE, RPATH/RUNPATH, FORTIFY.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        nx = not elf.execstack
+        relro_map = {"Full": "GOT is read-only", "Partial": "GOT still writable", "None": "No RELRO"}
+        relro_detail = relro_map.get(str(elf.relro), "")
+        rpath = getattr(elf, "rpath", None)
+        runpath = getattr(elf, "runpath", None)
+        fortify = getattr(elf, "fortify", None)
+        lines = [
+            f"Security properties for: {params.path}",
+            "",
+            f"  {'Property':20s} {'Status':15s} {'Detail':35s}",
+            f"  {'-'*20} {'-'*15} {'-'*35}",
+            f"  {'Arch':20s} {'':15s} {elf.arch}",
+            f"  {'Bits':20s} {'':15s} {elf.bits}",
+            f"  {'Endian':20s} {'':15s} {elf.endian}",
+            f"  {'RELRO':20s} {str(elf.relro):15s} {relro_detail:35s}",
+            f"  {'Stack Canary':20s} {str(elf.canary):15s} {'Canary present → resists stack overflow':35s}",
+            f"  {'NX (No-Execute)':20s} {str(nx):15s} {'Non-executable stack':35s}",
+            f"  {'PIE':20s} {str(elf.pie):15s} {'Position-Independent Executable':35s}",
+        ]
+        if rpath is not None:
+            lines.append(f"  {'RPATH':20s} {'SET':15s} {rpath}")
+        else:
+            lines.append(f"  {'RPATH':20s} {'Not set':15s} {'':35s}")
+        if runpath is not None:
+            lines.append(f"  {'RUNPATH':20s} {'SET':15s} {runpath}")
+        else:
+            lines.append(f"  {'RUNPATH':20s} {'Not set':15s} {'':35s}")
+        if fortify is not None:
+            lines.append(f"  {'FORTIFY':20s} {str(fortify):15s} {'Source fortification (_chk)':35s}")
+        lines.append("")
+        lines.append("  True  → Protection enabled     False → Protection disabled")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_erope",
+    annotations={"title": "Extended ROP Gadget Search", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_erope(params: ERopSearchParams) -> str:
+    '''Search ROP gadgets grouped by type: syscall, stack_pivot, call, jump.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        rop = pwn.ROP(elf)
+        gadgets = rop.gadgets
+        if not gadgets:
+            return "No ROP gadgets found"
+
+        valid_types = ("all", "syscall", "stack_pivot", "call", "jump")
+        if params.gadget_type not in valid_types:
+            return f"Error: invalid gadget_type '{params.gadget_type}'. Valid: {', '.join(valid_types)}"
+
+        categorized = {"syscall": [], "stack_pivot": [], "call": [], "jump": []}
+        for addr, g in gadgets.items():
+            insns = "; ".join(g.insns)
+            if "syscall" in insns or "int 0x80" in insns or "sysenter" in insns:
+                categorized["syscall"].append((addr, insns))
+            if ("xchg" in insns and "rsp" in insns) or "leave; ret" in insns or "pop rsp" in insns:
+                categorized["stack_pivot"].append((addr, insns))
+            if "call" in insns:
+                categorized["call"].append((addr, insns))
+            if "jmp" in insns:
+                categorized["jump"].append((addr, insns))
+
+        tags = {
+            "syscall": "[SYSCALL]",
+            "stack_pivot": "[STACK_PIVOT]",
+            "call": "[CALL]",
+            "jump": "[JUMP]",
+        }
+
+        result = [f"Extended ROP gadgets in {params.path} (type: {params.gadget_type})", ""]
+        show_all = params.gadget_type == "all"
+        shown_total = 0
+        for cat_name in ("syscall", "stack_pivot", "call", "jump"):
+            if not show_all and cat_name != params.gadget_type:
+                continue
+            items = categorized[cat_name]
+            if not items:
+                continue
+            result.append(f"  {tags[cat_name]} ({len(items)} gadgets):")
+            for addr, insns in items[:20]:
+                result.append(f"    {hex(addr)}: {insns}")
+                shown_total += 1
+            if len(items) > 20:
+                result.append(f"    ... ({len(items) - 20} more)")
+            result.append("")
+
+        if not any(categorized.values()):
+            return f"No gadgets found matching type '{params.gadget_type}'"
+        result.append(f"Total matching: {shown_total}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_enc",
+    annotations={"title": "Encode Shellcode", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_enc(params: ShellcodeEncodeParams) -> str:
+    '''Encode shellcode using pwntools encoders (alphanumeric, null_free, xor).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pwn.context.clear()
+        pwn.context.update(arch=params.arch, os="linux")
+
+        data = bytes.fromhex(params.hex_bytes.replace(" ", "").replace("\\x", ""))
+        if not data:
+            return "Error: empty or invalid hex bytes"
+
+        valid_encoders = ("alphanumeric", "null_free", "xor")
+        if params.encoder not in valid_encoders:
+            return f"Error: invalid encoder '{params.encoder}'. Valid: {', '.join(valid_encoders)}"
+
+        encoded = None
+        decoder_bytes = None
+
+        encoders_found = False
+        for src in (pwn.encoders.encoder,):
+            try:
+                enc_mod = getattr(src, params.encoder, None)
+                if enc_mod is None:
+                    continue
+                if callable(enc_mod):
+                    encoded = enc_mod(data)
+                else:
+                    encoded = enc_mod.encode(data)
+                try:
+                    if callable(getattr(enc_mod, "decoder", None)):
+                        decoder_bytes = enc_mod.decoder()
+                    else:
+                        decoder_bytes = getattr(enc_mod, "decoder", None)
+                except AttributeError:
+                    decoder_bytes = None
+                encoders_found = True
+                break
+            except (AttributeError, TypeError):
+                continue
+
+        if not encoders_found or encoded is None:
+            return (f"Encoder '{params.encoder}' not available in this pwntools version.\n"
+                    "The pwntools encoders API has changed across versions.\n"
+                    "Try upgrading: pip install -U pwntools\n"
+                    "Or check available encoders with: python -c \"from pwn import *; print(dir(encoders.encoder))\"")
+
+        result = [
+            f"=== Shellcode Encoding ({params.encoder}) ===",
+            f"  Architecture: {params.arch}",
+            "",
+            f"  Original ({len(data)} bytes):",
+            f"    {data.hex()}",
+            "",
+            f"  Encoded ({len(encoded)} bytes):",
+            f"    {encoded.hex()}",
+            "",
+            f"  Length change: {len(data)} → {len(encoded)} "
+            f"({'+' if len(encoded) > len(data) else ''}{len(encoded) - len(data)} bytes)",
+            "",
+        ]
+
+        if decoder_bytes:
+            result.append("  Decoder assembly:")
+            try:
+                dasm = pwn.disasm(decoder_bytes)
+                for line in dasm.split("\n"):
+                    result.append(f"    {line}")
+            except Exception:
+                result.append(f"    (decoder hex: {decoder_bytes.hex()})")
+        else:
+            result.append("  Decoder assembly: (not available for this encoder)")
+
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_read",
+    annotations={"title": "Read ELF Binary Bytes", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_read(params: ElfReadParams) -> str:
+    '''Read bytes from an ELF binary at a section or address, with hex dump output.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+
+        if params.section:
+            sec = elf.get_section_by_name(params.section)
+            if sec is None:
+                return (f"Error: section '{params.section}' not found.\n"
+                        f"Available sections: {', '.join(s.name for s in elf.sections if s.name)}")
+            base = sec.header.sh_addr
+            read_addr = base + (params.offset or 0)
+            sec_size = sec.header.sh_size
+            if (params.offset or 0) + params.size > sec_size:
+                return (f"Error: read would exceed section bounds.\n"
+                        f"  Section '{params.section}' base={hex(base)} size={hex(sec_size)}\n"
+                        f"  Requested offset={params.offset or 0} size={params.size} "
+                        f"exceeds {hex(sec_size)}")
+            location_desc = f"section '{params.section}'"
+            if params.offset:
+                location_desc += f" + {params.offset}"
+            location_desc += f" (addr {hex(read_addr)})"
+        elif params.offset is not None:
+            read_addr = params.offset
+            location_desc = f"virtual address {hex(read_addr)}"
+        else:
+            return "Error: provide either 'section' or 'offset'"
+
+        data = elf.read(read_addr, params.size)
+        dump = pwn.hexdump(data)
+
+        result = [
+            f"=== ELF Read: {params.path} ===",
+            f"  Location: {location_desc}",
+            f"  Bytes: {len(data)}",
+            "",
+            dump,
+        ]
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_constgrep",
+    annotations={"title": "Search Constants", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_constgrep(params: ConstGrepParams) -> str:
+    '''Search pwntools/ELF constants by name or value.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pwn.context.clear()
+        pwn.context.update(arch=params.arch)
+
+        search_lower = params.search.lower()
+
+        # Try pwn.constgrep (newer pwntools API)
+        try:
+            constgrep = getattr(pwn, "constgrep", None)
+            if constgrep:
+                results = constgrep(search_lower, arch=params.arch)
+                matches = []
+                for item in list(results)[:params.limit]:
+                    if hasattr(item, "_asdict"):
+                        d = item._asdict()
+                        name = d.get("name") or d.get("symbol", "?")
+                        val = d.get("value") or d.get("val", "?")
+                    elif isinstance(item, dict):
+                        name = item.get("name") or item.get("symbol", "?")
+                        val = item.get("value") or item.get("val", "?")
+                    elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                        if isinstance(item[0], str):
+                            name, val = item[0], item[1]
+                        else:
+                            val, name = item[0], item[1]
+                    else:
+                        name, val = str(item), "?"
+                    matches.append((name, val))
+
+                if matches:
+                    result = [f"Constants matching '{params.search}' ({params.arch}):", ""]
+                    for name, val in matches:
+                        if isinstance(val, int):
+                            result.append(f"  {name:45s} = {hex(val)} ({val})")
+                        else:
+                            result.append(f"  {name:45s} = {val}")
+                    result.append("")
+                    result.append(f"Total: {len(matches)} / {len(results)} matching (limited to {params.limit})")
+                    return "\n".join(result)
+        except (AttributeError, TypeError, ImportError):
+            pass
+
+        # Fallback: manual dir() search over constants module
+        try:
+            from pwnlib.constants import constant as const_mod
+        except ImportError:
+            try:
+                const_mod = pwn.elf.constant
+            except AttributeError:
+                # Try generic constant search via pwn.constants
+                try:
+                    const_mod = pwn.constants
+                except AttributeError:
+                    return ("Constants search not available in this pwntools version.\n"
+                            "Try upgrading: pip install -U pwntools\n"
+                            "Or provide a specific constant name.")
+
+        matches = []
+        for name in sorted(dir(const_mod)):
+            if search_lower in name.lower():
+                val = getattr(const_mod, name, None)
+                if val is not None and not name.startswith("_"):
+                    matches.append((name, val))
+                    if len(matches) >= params.limit:
+                        break
+
+        if matches:
+            result = [f"Constants matching '{params.search}' ({params.arch}):", ""]
+            for name, val in matches:
+                if isinstance(val, int):
+                    result.append(f"  {name:45s} = {hex(val)} ({val})")
+                else:
+                    result.append(f"  {name:45s} = {val}")
+            result.append("")
+            result.append(f"Total: {len(matches)} (limited to {params.limit})")
+            return "\n".join(result)
+        else:
+            return f"No constants found matching '{params.search}'"
+    except Exception as e:
+        return f"Error: {e}"
