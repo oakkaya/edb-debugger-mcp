@@ -9,8 +9,11 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 from collections import OrderedDict
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "binaryninja_mcp"))
-from mcp_client import MCPClient
+# Add project root to path for MCPClient import
+_project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+from binaryninja_mcp.mcp_client import MCPClient
 
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse

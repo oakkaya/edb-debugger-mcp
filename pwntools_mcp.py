@@ -8,12 +8,17 @@ from pydantic import BaseModel, Field, ConfigDict
 from edb_debugger_mcp import mcp
 
 
+_PWNTOOLS_READY = None
+
 def _pwntools_available() -> bool:
-    try:
-        import pwn  # noqa: F401
-        return True
-    except ImportError:
-        return False
+    global _PWNTOOLS_READY
+    if _PWNTOOLS_READY is None:
+        try:
+            import pwn  # noqa: F401
+            _PWNTOOLS_READY = True
+        except ImportError:
+            _PWNTOOLS_READY = False
+    return _PWNTOOLS_READY
 
 
 class ElfPath(BaseModel):

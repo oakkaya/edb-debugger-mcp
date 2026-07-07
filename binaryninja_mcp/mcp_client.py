@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import select
 import subprocess
 import sys
 from typing import Any, Optional
@@ -18,6 +19,7 @@ class MCPClient:
         self._process: Optional[subprocess.Popen] = None
         self._request_id = 0
         self._capabilities: dict = {}
+        self._timeout = 30.0
 
     @property
     def is_running(self) -> bool:
@@ -109,6 +111,9 @@ class MCPClient:
     def _read_line(self) -> Optional[str]:
         if not self._process or not self._process.stdout:
             raise ConnectionError("MCP server not running")
+        r, _, _ = select.select([self._process.stdout], [], [], self._timeout)
+        if not r:
+            raise TimeoutError(f"MCP server did not respond within {self._timeout}s")
         line = self._process.stdout.readline()
         if not line:
             return None
