@@ -222,7 +222,7 @@ docker pull ghcr.io/oakkaya/edb-debugger-mcp:latest
 docker run -i ghcr.io/oakkaya/edb-debugger-mcp
 
 # Run with a specific version tag
-docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.0.9
+docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.0.10
 
 # Run interactively with a shell for debugging
 docker run --rm -it \
