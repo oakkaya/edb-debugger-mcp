@@ -44,6 +44,11 @@ from pwntools_mcp import (
     ShellcodeEncodeParams,
     ElfReadParams,
     ConstGrepParams,
+    ElfSectionsParams,
+    ElfSymbolsParams,
+    ElfStringsParams,
+    ElfDepsParams,
+    EntropyParams,
     pwntools_analyze_elf,
     pwntools_find_rop,
     pwntools_shellcraft,
@@ -66,6 +71,11 @@ from pwntools_mcp import (
     pwntools_elf_patch,
     pwntools_elf_search,
     pwntools_make_elf,
+    pwntools_elf_sections,
+    pwntools_elf_symbols,
+    pwntools_elf_strings,
+    pwntools_elf_deps,
+    pwntools_entropy,
 )
 
 
@@ -477,6 +487,51 @@ class TestPwntoolsTools:
         d = json.loads(r)
         assert "chain_length" in d
         assert d["chain_length"] > 0
+
+    # -- ELF Sections --
+
+    def test_elf_sections(self, test_binary):
+        r = _await(pwntools_elf_sections(ElfSectionsParams(path=test_binary)))
+        assert "Sections" in r
+        assert ".text" in r
+
+    def test_elf_sections_filter(self, test_binary):
+        r = _await(pwntools_elf_sections(ElfSectionsParams(path=test_binary, filter_name="text")))
+        assert ".text" in r
+
+    # -- ELF Symbols --
+
+    def test_elf_symbols(self, test_binary):
+        r = _await(pwntools_elf_symbols(ElfSymbolsParams(path=test_binary, pattern="main")))
+        assert "main" in r
+
+    def test_elf_symbols_functions(self, test_binary):
+        r = _await(pwntools_elf_symbols(ElfSymbolsParams(path=test_binary, pattern=".")))
+        assert "Symbols" in r
+
+    # -- ELF Strings --
+
+    def test_elf_strings(self, test_binary):
+        r = _await(pwntools_elf_strings(ElfStringsParams(path=test_binary, min_length=3)))
+        assert "Strings" in r
+
+    def test_elf_strings_section(self, test_binary):
+        r = _await(pwntools_elf_strings(ElfStringsParams(path=test_binary, section=".text", min_length=3)))
+        assert "Strings" in r or "Error" in r
+
+    # -- ELF Dependencies --
+
+    def test_elf_deps(self, test_binary):
+        r = _await(pwntools_elf_deps(ElfDepsParams(path=test_binary)))
+        assert "Dependencies" in r
+        assert "libc" in r or "no dynamic" in r
+
+    # -- Entropy --
+
+    def test_entropy(self, test_binary):
+        r = _await(pwntools_entropy(EntropyParams(path=test_binary)))
+        assert "Entropy" in r
+        assert "Shannon" in r
 
 
 # ---------------------------------------------------------------------------

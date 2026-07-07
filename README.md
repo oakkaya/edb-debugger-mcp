@@ -13,7 +13,7 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **157 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **162 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
 
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
 
@@ -30,7 +30,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 
 | Stat | Value |
 |------|-------|
-| Total tools | **157** (135 edb_ + 22 pwntools_) |
+| Total tools | **162** (135 edb_ + 27 pwntools_) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
 | Code size | ~6100 LOC · 83 Pydantic models · 123 backend methods |
 
@@ -59,7 +59,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [IDA Pro Integration](#ida-pro-integration)
 - [VS Code Extension](#vs-code-extension)
 - [Project Structure](#project-structure)
-- [Tool Reference](#tool-reference-157-tools)
+- [Tool Reference](#tool-reference-162-tools)
 - [License](#license)
 
 ## Quick Start
@@ -264,7 +264,7 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 
 ## pwntools Tools
 
-The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 22 MCP tools callable alongside the EDB debugger tools.
+The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 27 MCP tools callable alongside the EDB debugger tools.
 
 | Tool | Description |
 |------|-------------|
@@ -276,10 +276,15 @@ The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the
 | `pwntools_cyclic` | Generate De Bruijn cyclic pattern for offset discovery |
 | `pwntools_cyclic_find` | Find offset of a value in cyclic pattern |
 | `pwntools_disasm` | Disassemble raw bytes with pwntools (architecture-aware) |
+| `pwntools_elf_deps` | Show shared library dependencies and interpreter |
 | `pwntools_elf_patch` | Patch bytes in ELF binary at file offset (creates .bak) |
 | `pwntools_elf_read` | Read bytes from ELF binary at section or address |
+| `pwntools_elf_sections` | List all sections with type, flags, address, size |
 | `pwntools_elf_search` | Search ELF binary for byte pattern grouped by section |
+| `pwntools_elf_strings` | Extract printable strings from ELF (by section or all) |
+| `pwntools_elf_symbols` | Search symbols by regex with address table |
 | `pwntools_enc` | Encode shellcode (alphanumeric, null_free, xor) |
+| `pwntools_entropy` | Shannon entropy analysis of file or region |
 | `pwntools_erope` | Search ROP gadgets grouped by type (syscall, stack_pivot, call, jump) |
 | `pwntools_find_rop` | Search for ROP gadgets by regex |
 | `pwntools_flat` | Pack values/addresses into flat payload bytes |
@@ -380,7 +385,7 @@ Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge
 
 ## IDA Pro Integration
 
-> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 157 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
+> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 162 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
 
 The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
 - **Start/Stop Bridge** — Launch and terminate the MCP subprocess
@@ -427,7 +432,7 @@ The extension registers commands under the `EDB:` prefix and shows a status bar 
 edb-debugger-mcp/
 ├── gdb_backend.py          # GDB MI backend (123 public methods, MI parser, session mgmt)
 ├── edb_debugger_mcp.py     # FastMCP server (135 edb_ tools, 83 Pydantic models)
-├── pwntools_mcp.py         # Pwntools integration (22 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, checksec, erope, enc, read, constgrep, flat, sigreturn, patch, search, make_elf)
+├── pwntools_mcp.py         # Pwntools integration (27 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, checksec, erope, enc, read, constgrep, flat, sigreturn, patch, search, make_elf)
 ├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
 ├── ghidra_mcp/             # Ghidra bridge (pyhidra-based, same MCP client)
 ├── ida_mcp/                # IDA Pro plugin (IDAPython bridge with breakpoint/patch/step)
@@ -475,10 +480,10 @@ cd examples/ret2win
 python solve.py
 ```
 
-## Tool Reference (157 tools)
+## Tool Reference (162 tools)
 
 <details>
-<summary>Click to expand the full tool reference (17 categories, 157 tools)</summary>
+<summary>Click to expand the full tool reference (17 categories, 162 tools)</summary>
 
 ### Program Control (12 tools)
 

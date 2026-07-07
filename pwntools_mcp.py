@@ -1232,3 +1232,309 @@ async def pwntools_make_elf(params: MakeElfParams) -> str:
         return "\n".join(result)
     except Exception as e:
         return f"Error: {e}"
+
+
+class ElfSectionsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    filter_name: Optional[str] = Field(default=None, description="Filter sections by name substring")
+
+
+class ElfSymbolsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    pattern: str = Field(default="", description="Regex pattern to match symbol names")
+    type_filter: str = Field(default="all", description="Symbol type: all, function, object, file")
+
+
+class ElfStringsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    min_length: int = Field(default=4, description="Minimum string length", ge=3, le=100)
+    section: Optional[str] = Field(default=None, description="Limit to specific section (default: all loadable)")
+
+
+class ElfDepsParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    resolve_versions: bool = Field(default=False, description="Try to resolve library versions from system")
+
+
+class EntropyParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the binary/region", min_length=1)
+    offset: int = Field(default=0, description="Start offset", ge=0)
+    size: Optional[int] = Field(default=None, description="Size in bytes (default: entire file)")
+
+
+@mcp.tool(
+    name="pwntools_elf_sections",
+    annotations={"title": "Detailed ELF Sections", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_sections(params: ElfSectionsParams) -> str:
+    '''List all ELF sections with detailed info: type, flags, address, offset, size, alignment.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+
+        type_names = {
+            0: "NULL", 1: "PROGBITS", 2: "SYMTAB", 3: "STRTAB", 4: "RELA",
+            5: "HASH", 6: "DYNAMIC", 7: "NOTE", 8: "NOBITS", 9: "REL",
+            10: "SHLIB", 11: "DYNSYM", 14: "INIT_ARRAY", 15: "FINI_ARRAY",
+            16: "PREINIT_ARRAY", 17: "GROUP", 18: "SYMTAB_SHNDX",
+        }
+        flag_names = {1: "W", 2: "A", 4: "X", 0x10: "T"}
+
+        result = [f"Sections in {params.path}:", "",
+                  f"  {'Nr':3s} {'Name':22s} {'Type':14s} {'Addr':18s} {'Off':8s} {'Size':8s} {'Flags':6s} {'Align':5s}",
+                  f"  {'--':3s} {'----':22s} {'----':14s} {'----':18s} {'---':8s} {'----':8s} {'-----':6s} {'-----':5s}"]
+
+        shown = 0
+        for i, sec in enumerate(elf.sections):
+            name = sec.name or "(unnamed)"
+            if params.filter_name and params.filter_name.lower() not in name.lower():
+                continue
+            sh = sec.header
+            stype = type_names.get(sh.sh_type, hex(sh.sh_type) if isinstance(sh.sh_type, int) else str(sh.sh_type))
+            vaddr = sh.sh_addr if isinstance(sh.sh_addr, int) else 0
+            off = sh.sh_offset if isinstance(sh.sh_offset, int) else 0
+            size = sh.sh_size if isinstance(sh.sh_size, int) else 0
+            flags = sh.sh_flags if isinstance(sh.sh_flags, int) else 0
+            align = sh.sh_addralign if isinstance(sh.sh_addralign, int) else 0
+            flag_str = "".join(f for v, f in flag_names.items() if flags & v)
+            result.append(f"  [{i:3d}] {name:22s} {stype:14s} {hex(vaddr) if vaddr else '':18s} {hex(off) if off else '':8s} {hex(size) if size else '':8s} {flag_str:6s} {str(align):5s}")
+            shown += 1
+
+        result.append("")
+        result.append(f"Total: {shown} section{'s' if shown != 1 else ''}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_symbols",
+    annotations={"title": "Search ELF Symbols", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_symbols(params: ElfSymbolsParams) -> str:
+    '''Search symbols in an ELF binary by regex pattern and type.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+        import re as re_mod
+        pattern_re = re_mod.compile(params.pattern if params.pattern else ".")
+
+        matches = []
+        for sym_name, addr in elf.symbols.items():
+            if not pattern_re.search(sym_name):
+                continue
+            if not isinstance(addr, int):
+                continue
+            matches.append((sym_name, addr))
+
+        matches.sort(key=lambda x: x[1])
+        result = [f"Symbols in {params.path} matching /{params.pattern}/:", "",
+                  f"  {'Name':35s} {'Address':18s}",
+                  f"  {'----':35s} {'-------':18s}"]
+
+        for name, addr in matches[:50]:
+            result.append(f"  {name:35s} {hex(addr):18s}")
+
+        if len(matches) > 50:
+            result.append(f"  ... ({len(matches) - 50} more)")
+
+        result.append("")
+        result.append(f"Total: {len(matches)} symbol{'s' if len(matches) != 1 else ''}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_strings",
+    annotations={"title": "Extract ELF Strings", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_strings(params: ElfStringsParams) -> str:
+    '''Extract printable strings from an ELF binary, optionally filtered by section.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+
+        if params.section:
+            sec = elf.get_section_by_name(params.section)
+            if sec is None:
+                available = [s.name for s in elf.sections if s.name]
+                return (f"Error: section '{params.section}' not found.\n"
+                        f"Available: {', '.join(available)}")
+            data = sec.data()
+            offset_base = sec.header.sh_addr
+            section_label = f"section '{params.section}'"
+        else:
+            data = elf.data
+            offset_base = 0
+            section_label = "entire binary"
+
+        import re as re_mod
+        pattern = re_mod.compile(rb"[\x20-\x7e]{" + str(params.min_length).encode() + rb",}")
+        matches = [(m.start() + offset_base, m.group().decode("ascii")) for m in pattern.finditer(data)]
+
+        if not matches:
+            return f"No strings found in {section_label} (min_length={params.min_length})"
+
+        result = [f"Strings in {params.path} ({section_label}):", "",
+                  f"  {'Address':16s} {'String':50s}",
+                  f"  {'-------':16s} {'------':50s}"]
+        for addr, s in matches[:100]:
+            s_trim = s[:80]
+            addr_str = hex(addr) if addr else "?" * 16
+            result.append(f"  {addr_str:16s} {s_trim}")
+
+        if len(matches) > 100:
+            result.append(f"  ... ({len(matches) - 100} more strings)")
+
+        result.append("")
+        result.append(f"Total: {len(matches)} string{'s' if len(matches) != 1 else ''} in {section_label}")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_deps",
+    annotations={"title": "ELF Dependencies", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_deps(params: ElfDepsParams) -> str:
+    '''List shared library dependencies of an ELF binary (DT_NEEDED entries).'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed"
+    try:
+        pwn = _import_pwn()
+        elf = pwn.ELF(params.path, checksec=False)
+
+        result = [f"Dependencies for {params.path}:", ""]
+
+        needed = list(elf.dependencies) if hasattr(elf, "dependencies") else []
+        if not needed:
+            result.append("  (no dynamic dependencies - statically linked or stripped)")
+        else:
+            result.append(f"  DT_NEEDED ({len(needed)} entries):")
+            for dep in needed:
+                result.append(f"    {dep}")
+
+        if params.resolve_versions:
+            result.append("")
+            result.append("  Resolving library versions from system...")
+            import subprocess as sp
+            try:
+                r = sp.run(["ldd", params.path], capture_output=True, text=True, timeout=10)
+                if r.returncode == 0:
+                    for line in r.stdout.strip().split("\n"):
+                        result.append(f"    {line.strip()}")
+                else:
+                    result.append(f"    (ldd failed: {r.stderr.strip()})")
+            except FileNotFoundError:
+                result.append("    (ldd not found)")
+            except sp.TimeoutExpired:
+                result.append("    (ldd timed out)")
+
+        result.append("")
+        rpath = getattr(elf, "rpath", None)
+        runpath = getattr(elf, "runpath", None)
+        interp = elf.get_section_by_name(".interp")
+        if interp:
+            interp_data = interp.data()
+            interp_str = interp_data[:interp_data.index(b"\x00")].decode("utf-8", errors="replace")
+            result.append(f"  Interpreter: {interp_str}")
+        if rpath:
+            result.append(f"  RPATH: {rpath}")
+        if runpath:
+            result.append(f"  RUNPATH: {runpath}")
+
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_entropy",
+    annotations={"title": "Byte Entropy Analysis", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_entropy(params: EntropyParams) -> str:
+    '''Calculate byte entropy (Shannon) of a file or memory region. Useful for detecting encryption, packing, or embedded data.'''
+    try:
+        with open(params.path, "rb") as f:
+            if params.offset > 0:
+                f.seek(params.offset)
+            data = f.read(params.size) if params.size else f.read()
+
+        if not data:
+            return "Error: no data to analyze (empty file or region)"
+
+        import math as math_mod
+        byte_counts = [0] * 256
+        for b in data:
+            byte_counts[b] += 1
+
+        total = len(data)
+        entropy = -sum(c / total * math_mod.log2(c / total) for c in byte_counts if c > 0)
+
+        high_entropy = sum(1 for c in byte_counts if c > 0)
+        top_bytes = sorted(
+            [(i, c / total * 100) for i, c in enumerate(byte_counts)],
+            key=lambda x: -x[1]
+        )[:8]
+
+        if entropy < 2.0:
+            hint = "Low entropy — likely plain text, code, or structured data"
+        elif entropy < 5.0:
+            hint = "Medium entropy — mixed content or compressed"
+        else:
+            hint = "High entropy — likely encrypted, compressed, or packed"
+
+        null_pct = byte_counts[0] / total * 100
+        printable_pct = sum(byte_counts[b] for b in range(32, 127)) / total * 100
+
+        result = [
+            f"=== Entropy Analysis: {params.path} ===",
+            f"  Offset: {hex(params.offset)}",
+            f"  Size: {total} bytes ({total / 1024:.1f} KB)",
+            "",
+            f"  Shannon Entropy: {entropy:.4f} / 8.0",
+            f"  Classification:   {hint}",
+            "",
+            f"  Null bytes: {null_pct:.1f}%",
+            f"  Printable ASCII: {printable_pct:.1f}%",
+            f"  Unique bytes: {high_entropy}/256",
+            "",
+            "  Most frequent bytes:",
+        ]
+        for val, pct in top_bytes:
+            ch = chr(val) if 32 <= val < 127 else "."
+            result.append(f"    0x{val:02x} ({ch:3s}): {pct:5.1f}%")
+
+        if total >= 1024:
+            block_size = 256
+            result.append(f"\n  Per-block entropy (256B blocks):")
+            max_blocks = min(total // block_size, 64)
+            for i in range(max_blocks):
+                block = data[i * block_size:(i + 1) * block_size]
+                counts = [0] * 256
+                for b in block:
+                    counts[b] += 1
+                be = -sum(c / block_size * math_mod.log2(c / block_size) for c in counts if c > 0)
+                marker = " !" if be > 7.0 else "  "
+                result.append(f"    [{i * block_size:06x}]: {be:.2f}{marker}")
+            if total // block_size > max_blocks:
+                result.append(f"    ... ({total // block_size - max_blocks} more blocks)")
+
+        return "\n".join(result)
+    except FileNotFoundError:
+        return f"Error: file not found: {params.path}"
+    except Exception as e:
+        return f"Error: {e}"
