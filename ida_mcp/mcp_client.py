@@ -36,7 +36,7 @@ class MCPClient:
         resp = self._send_request("initialize", {
             "protocolVersion": "2024-11-05",
             "capabilities": {},
-            "clientInfo": {"name": "binaryninja-edb-bridge", "version": "1.0.0"},
+            "clientInfo": {"name": "ida-edb-bridge", "version": "1.0.0"},
         })
         self._send_notification("notifications/initialized")
         self._capabilities = resp.get("capabilities", {})

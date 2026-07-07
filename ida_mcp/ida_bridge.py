@@ -151,23 +151,38 @@ def _action_assemble_at():
 
 
 def _action_step_into():
-    _get_client().call_tool("edb_step_into", {})
+    try:
+        _get_client().call_tool("edb_step_into", {})
+    except Exception as e:
+        _show_error(str(e))
 
 
 def _action_step_over():
-    _get_client().call_tool("edb_step_over", {})
+    try:
+        _get_client().call_tool("edb_step_over", {})
+    except Exception as e:
+        _show_error(str(e))
 
 
 def _action_step_out():
-    _get_client().call_tool("edb_step_out", {})
+    try:
+        _get_client().call_tool("edb_step_out", {})
+    except Exception as e:
+        _show_error(str(e))
 
 
 def _action_run_continue():
-    _get_client().call_tool("edb_run", {})
+    try:
+        _get_client().call_tool("edb_run", {})
+    except Exception as e:
+        _show_error(str(e))
 
 
 def _action_pause():
-    _get_client().call_tool("edb_pause", {})
+    try:
+        _get_client().call_tool("edb_pause", {})
+    except Exception as e:
+        _show_error(str(e))
 
 
 def _action_show_registers():

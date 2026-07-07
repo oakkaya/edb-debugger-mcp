@@ -370,7 +370,7 @@ Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge
 
 ## IDA Pro Integration
 
-> **⚠ Experimental / untested** — no IDA Pro license available for testing. PRs welcome.
+> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 147 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
 
 The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
 - **Start/Stop Bridge** — Launch and terminate the MCP subprocess
