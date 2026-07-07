@@ -1,7 +1,7 @@
 [project]
 name = "edb-debugger-mcp"
-version = "1.0.11"
-description = "EDB (Evan's Debugger) → MCP server. 147 debugging tools for AI-assisted reverse engineering. GDB MI + pwntools + Binary Ninja integration."
+version = "1.0.12"
+description = "EDB (Evan's Debugger) → MCP server. 162 debugging tools for AI-assisted reverse engineering. GDB MI + pwntools (27 tools) + Web UI + IDA Pro + Binary Ninja integration."
 readme = "README.md"
 license = { text = "MIT" }
 classifiers = [
