@@ -1,6 +1,6 @@
 # EDB Debugger MCP — VS Code Extension
 
-An AI-powered debugger frontend for the **edb-debugger-mcp** server. Provides 147 debugging tools via a GDB/MI backend, controllable from VS Code commands and a WebView panel.
+An AI-powered debugger frontend for the **edb-debugger-mcp** server. Provides 174 debugging tools via a GDB/MI backend, controllable from VS Code commands and a WebView panel.
 
 ## Prerequisites
 

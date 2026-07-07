@@ -13,7 +13,7 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **162 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **174 debugging tools** (93 Pydantic models, 172 backend methods, ~6500 LOC).
 
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
 
@@ -30,7 +30,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 
 | Stat | Value |
 |------|-------|
-| Total tools | **162** (135 edb_ + 27 pwntools_) |
+| Total tools | **174** (147 edb_ + 27 pwntools_) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
 | Code size | ~6100 LOC · 83 Pydantic models · 123 backend methods |
 
@@ -59,7 +59,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [IDA Pro Integration](#ida-pro-integration)
 - [VS Code Extension](#vs-code-extension)
 - [Project Structure](#project-structure)
-- [Tool Reference](#tool-reference-162-tools)
+- [Tool Reference](#tool-reference-174-tools)
 - [License](#license)
 
 ## Quick Start
@@ -385,7 +385,7 @@ Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge
 
 ## IDA Pro Integration
 
-> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 162 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
+> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 174 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
 
 The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
 - **Start/Stop Bridge** — Launch and terminate the MCP subprocess
@@ -480,220 +480,264 @@ cd examples/ret2win
 python solve.py
 ```
 
-## Tool Reference (162 tools)
+## Tool Reference (174 tools)
 
 <details>
-<summary>Click to expand the full tool reference (17 categories, 162 tools)</summary>
+<summary>Click to expand the full tool reference (17 categories, 174 tools)</summary>
 
 ### Program Control (12 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_load_program` | Load binary for debugging with optional args/working dir |
-| `edb_attach_process` | Attach to running process by PID |
-| `edb_detach_process` | Detach from debugged process |
-| `edb_kill_process` | Kill the debugged process |
-| `edb_run` | Start/restart execution |
-| `edb_continue` | Continue after breakpoint/pause |
-| `edb_pause` | Interrupt the running program |
-| `edb_restart` | Kill and restart with breakpoints preserved |
-| `edb_continue_to` | Run until target address is reached |
-| `edb_remote_connect` | Connect to remote GDB server (gdbserver) |
-| `edb_generate_core_dump` | Generate core dump of current process state |
-| `edb_send_signal` | Send signal to debugee |
+| `edb_load_program` | Load an executable binary for debugging. Resolves symbols and prepares for execu |
+| `edb_run` | Start execution of the loaded program from the beginning. |
+| `edb_continue` | Continue execution after a breakpoint or pause. |
+| `edb_continue_to` | Continue execution until a specific address is reached. |
+| `edb_pause` | Pause (interrupt) the running program. |
+| `edb_restart` | Kill and restart the debugged program. Reloads the binary, preserves breakpoints |
+| `edb_attach_process` | Attach the debugger to an already-running process by PID. |
+| `edb_detach_process` | Detach from the debugged process. The process continues running independently. |
+| `edb_kill_process` | Kill the debugged process immediately. |
+| `edb_remote_connect` | Connect to a remote gdbserver for remote debugging. |
+| `edb_send_signal` | Send a signal to the debugged process. |
+| `edb_call_function` | Call a function in the context of the debugged process. |
 
 ### Step Operations (8 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_step_into` | Step into next instruction (source level) |
-| `edb_step_over` | Step over next call (source level) |
-| `edb_step_out` | Execute until function returns |
-| `edb_step_instruction` | Step one instruction (assembly level, into calls) |
-| `edb_step_over_instruction` | Step over one instruction (assembly level) |
-| `edb_reverse_step` | Step backward one instruction (needs record) |
-| `edb_reverse_continue` | Continue backward (needs record) |
-| `edb_jump_to_address` | Set EIP/RIP to arbitrary address |
+| `edb_step_instruction` | Step a single instruction (assembly-level), not a source line. |
+| `edb_step_into` | Execute one machine instruction, stepping into function calls. |
+| `edb_step_over` | Execute one machine instruction, treating calls as atomic. |
+| `edb_step_out` | Execute until the current function returns to its caller. |
+| `edb_step_over_instruction` | Step over a single instruction (assembly-level), skipping calls. |
+| `edb_reverse_step` | Step backward in the program execution (reverse debugging). |
+| `edb_reverse_continue` | Continue execution backward to the previous breakpoint or event. |
+| `edb_jump_to_address` | Jump to a specific address, setting the instruction pointer. |
 
-### Breakpoints (14 tools)
-
-| Tool | Description |
-|------|-------------|
-| `edb_set_breakpoint` | Set breakpoint at function/address/file:line |
-| `edb_set_hardware_breakpoint` | Set hardware-assisted breakpoint |
-| `edb_set_watchpoint` | Set watchpoint (write/read/access) |
-| `edb_set_catchpoint` | Set catchpoint (exception/event/syscall) |
-| `edb_set_trace_point` | Set conditional logging breakpoint |
-| `edb_set_breakpoint_condition` | Add condition to breakpoint |
-| `edb_set_breakpoint_ignore_count` | Set breakpoint ignore count |
-| `edb_breakpoint_commands` | Set commands to run on breakpoint hit |
-| `edb_remove_breakpoint` | Remove breakpoint by number |
-| `edb_enable_breakpoint` | Enable disabled breakpoint |
-| `edb_disable_breakpoint` | Disable breakpoint |
-| `edb_list_breakpoints` | List all breakpoints with status |
-| `edb_breakpoint_export` | Export breakpoints to JSON file |
-| `edb_breakpoint_import` | Import breakpoints from JSON file |
-
-### Register Operations (8 tools)
+### Breakpoints (17 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_get_registers` | Get all CPU register values |
-| `edb_get_register` | Get single register value |
-| `edb_set_register` | Modify a register value |
-| `edb_dump_registers` | Formatted register dump with flag analysis |
-| `edb_get_changed_registers` | Show all registers (EDB-style changed highlighting) |
-| `edb_get_fpu_state` | Get FPU register state (ST0-ST7, control/status words) |
-| `edb_get_simd_state` | Get SIMD register state (XMM/YMM/ZMM) |
-| `edb_get_arch_info` | Get architecture info (pointer size, CPU type) |
+| `edb_set_breakpoint` | Set a breakpoint at a function, address, or source location. |
+| `edb_set_hardware_breakpoint` | Set a hardware-assisted breakpoint using CPU debug registers. |
+| `edb_set_watchpoint` | Set a watchpoint to monitor memory access. Three modes: |
+| `edb_set_catchpoint` | Set a catchpoint for exceptions, syscalls, signals, or process events. |
+| `edb_set_trace_point` | Set a trace point (logging breakpoint) that prints a message and continues |
+| `edb_set_breakpoint_condition` | Set or remove a condition on an existing breakpoint. |
+| `edb_set_breakpoint_ignore_count` | Set the number of times a breakpoint should be ignored before stopping. |
+| `edb_breakpoint_commands` | Set commands to execute when a breakpoint is hit. |
+| `edb_enable_breakpoint` | Re-activate a disabled breakpoint. |
+| `edb_disable_breakpoint` | Disable a breakpoint without removing it. It can be re-enabled later. |
+| `edb_remove_breakpoint` | Permanently remove a breakpoint or watchpoint by number. |
+| `edb_list_breakpoints` | List all breakpoints, watchpoints, and their status (number, type, enable/disabl |
+| `edb_breakpoint_export` | Export all breakpoints to a JSON file on disk. |
+| `edb_breakpoint_import` | Import breakpoints from a JSON file previously exported with |
+| `edb_trace_start` | Start an execution trace at an address/function. Records every instruction execu |
+| `edb_trace_stop` | Stop the current execution trace session. |
+| `edb_trace_show` | Show execution trace status, frames, and collected data. |
 
-### Memory Operations (13 tools)
+### Register Operations (9 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_read_memory` | Hex dump memory at address with configurable format |
-| `edb_read_memory_as` | Read memory as specified data type (int, float, char, etc.) |
-| `edb_write_memory` | Write value to memory address |
-| `edb_write_memory_bytes` | Write raw hex bytes to memory |
-| `edb_search_memory` | Search memory for byte/string pattern |
-| `edb_dump_memory_to_file` | Dump memory range to file |
-| `edb_fill_memory` | Fill memory range with byte pattern |
-| `edb_get_memory_map` | Get process memory map with permissions |
-| `edb_get_memory_region_info` | Get memory region config (base, size, perms) |
-| `edb_set_memory_permissions` | Set memory region permissions (R/W/X) |
-| `edb_compare_memory` | Compare two memory regions |
-| `edb_compare_sections` | Compare binary sections with in-memory data |
-| `edb_binary_string_convert` | Convert between hex/ASCII/UTF-16 representations |
+| `edb_get_registers` | Get all CPU register values as JSON. Includes general-purpose registers, |
+| `edb_get_register` | Get the value of a specific CPU register. |
+| `edb_set_register` | Modify a CPU register value. Useful for patching execution flow or testing condi |
+| `edb_dump_registers` | Get a human-readable register dump in markdown table format. |
+| `edb_get_changed_registers` | Get all register values (shows current state, EDB-style). |
+| `edb_get_fpu_state` | Get the FPU (Floating Point Unit) register state. |
+| `edb_get_simd_state` | Get the SIMD (SSE/AVX) register state. |
+| `edb_get_arch_info` | Get architecture information about the debugged process and binary. |
+| `edb_get_eflags` | Show the EFLAGS/RFLAGS CPU status register with individual flag states. |
+
+### Memory Operations (12 tools)
+
+| Tool | Description |
+|------|-------------|
+| `edb_read_memory` | Read and display memory contents at an address as a hex dump. |
+| `edb_read_memory_as` | Read memory at an address interpreted as a specific data type. |
+| `edb_write_memory` | Write a value to a memory address. Use for patching code or data. |
+| `edb_write_memory_bytes` | Write raw hex bytes to memory starting at an address. |
+| `edb_fill_memory` | Fill a memory region with a repeating byte value. |
+| `edb_search_memory` | Search memory for a byte pattern. Finds all occurrences in the specified region. |
+| `edb_compare_memory` | Compare two memory regions byte-by-byte and show differences. |
+| `edb_compare_sections` | Compare loaded memory sections with the original binary on disk. |
+| `edb_get_memory_map` | Get the process memory map (like /proc/pid/maps). |
+| `edb_get_memory_region_info` | Get information about defined memory regions and their permissions. |
+| `edb_set_memory_permissions` | Set memory permissions for a region (read/write/execute). |
+| `edb_dump_memory_to_file` | Dump a memory region to a binary file on disk. |
 
 ### Disassembly (7 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_disassemble` | Disassemble at address or function name |
-| `edb_disassemble_range` | Disassemble address range with configurable length |
-| `edb_get_current_instruction` | Get instruction at program counter |
-| `edb_nop_range` | NOP out instruction range |
-| `edb_assemble` | Assemble instruction at address (Keystone optional) |
-| `edb_search_instructions` | Search for instruction patterns (OpcodeSearcher) |
-| `edb_generate_cfg` | Generate control flow graph in DOT format |
+| `edb_disassemble` | Disassemble machine code at an address or function. |
+| `edb_disassemble_range` | Disassemble a range of memory from start to end address. |
+| `edb_get_current_instruction` | Get the instruction at the current program counter (RIP/EIP). |
+| `edb_instruction_detail` | Get detailed information about an instruction at a given address. |
+| `edb_search_instructions` | Search memory for byte patterns (case-insensitive). |
+| `edb_analyze_basic_blocks` | Analyze a code region and identify basic blocks. |
+| `edb_analyze_calls_at` | Disassemble at an address and identify call/jump targets. |
 
-### Stack & Frames (10 tools)
+### Stack & Frames (11 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_get_stack` | Dump stack contents |
-| `edb_get_stack_frame` | Get stack frame details (RBP, RSP, return addr) |
-| `edb_get_backtrace` | Get full call stack backtrace |
-| `edb_get_frame_info` | Get detailed stack frame info |
-| `edb_get_arguments` | Get function arguments |
-| `edb_get_locals` | Get local variables |
-| `edb_get_variable` | Get variable value |
-| `edb_set_variable` | Modify variable value |
-| `edb_stack_push` | Push value onto program stack |
-| `edb_stack_pop` | Pop value from program stack |
-| `edb_stack_modify` | Modify value at stack top without changing RSP |
+| `edb_get_stack` | Dump the current stack (stack pointer to higher addresses). |
+| `edb_get_backtrace` | Get the full call stack backtrace. Frame #0 is the current function. |
+| `edb_get_frame_info` | Get detailed information about a stack frame: address, function, |
+| `edb_get_locals` | Get all local variables in the current function scope. |
+| `edb_get_arguments` | Get the arguments passed to the current function. |
+| `edb_list_stack_arguments` | List arguments for stack frames. |
+| `edb_stack_push` | Push a value onto the program stack (decrements RSP, writes value). |
+| `edb_stack_pop` | Pop a value from the program stack (reads value, increments RSP). |
+| `edb_stack_modify` | Modify the value at the top of the stack without changing RSP. |
+| `edb_get_stack_frame` | Get detailed information about a specific stack frame level. |
+| `edb_scan_stack_for_retaddr` | Scan the stack for potential return addresses (values in valid text ranges). Use |
 
 ### Symbol Analysis (9 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_lookup_symbol` | Look up symbol address and type |
-| `edb_list_functions` | List functions in binary |
-| `edb_get_function_info` | Get function details (name, address, bounds) |
-| `edb_get_function_bounds` | Get function start/end addresses |
-| `edb_list_modules` | List loaded shared libraries |
-| `edb_get_section_info` | Get ELF section information |
-| `edb_get_entry_point` | Get program entry point |
-| `edb_get_binary_info` | Get binary file info (arch, type, sections) |
-| `edb_generate_symbols` | Generate binary symbol map (FAS loader) |
+| `edb_lookup_symbol` | Look up a symbol's address and type. Supports functions and variables. |
+| `edb_list_functions` | List all functions in the binary, optionally filtered by name. |
+| `edb_get_function_info` | Get detailed info about a function: address, prototype, source location. |
+| `edb_get_function_bounds` | Get the start address, end address, and size of a function. |
+| `edb_list_modules` | List all shared libraries / modules loaded by the process. |
+| `edb_get_section_info` | Get detailed section information for loaded modules. |
+| `edb_get_entry_point` | Get the program entry point address. The entry point is the first code |
+| `edb_find_references` | Find all code references to a given address or symbol. |
+| `edb_find_strings` | Find printable ASCII strings in the current code region. |
 
 ### Thread & Process (6 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_list_threads` | List all threads with status |
-| `edb_get_current_thread` | Get current thread info |
-| `edb_set_current_thread` | Switch to different thread |
-| `edb_get_process_properties` | Get process properties |
-| `edb_inferior_info` | Get inferior/process info |
-| `edb_list_features` | List GDB features and capabilities |
+| `edb_list_threads` | List all threads in the debugged process with IDs, names, and states. |
+| `edb_get_current_thread` | Get info about the currently active thread. |
+| `edb_set_current_thread` | Switch the debugger context to a different thread. |
+| `edb_get_process_properties` | Get comprehensive properties of the debugged process. |
+| `edb_inferior_info` | Get information about all inferiors (processes) being debugged. |
+| `edb_follow_fork` | Set whether the debugger follows the parent or child process after a fork. |
 
-### Expression & Data (7 tools)
-
-| Tool | Description |
-|------|-------------|
-| `edb_evaluate_expression` | Evaluate C expression |
-| `edb_ptype` | Print type definition of expression |
-| `edb_whatis` | Print type name of expression |
-| `edb_get_string` | Read null-terminated string from memory |
-| `edb_find_strings` | Find printable strings in memory region |
-| `edb_find_references` | Find code references to address |
-| `edb_string_references` | Find string references in binary |
-
-### Code Analysis (6 tools)
+### Expression & Data (8 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_list_source` | Display source code |
-| `edb_list_source_files` | List compiled source files |
-| `edb_analyze_region` | Analyze code region for functions |
-| `edb_analyze_calls_at` | Analyze function calls at address |
-| `edb_analyze_basic_blocks` | Analyze basic blocks in region |
-| `edb_analyze_heap` | Analyze heap memory (HeapAnalyzer) |
+| `edb_evaluate_expression` | Evaluate a C expression in the debug context. |
+| `edb_ptype` | Print the type of a variable, function, or expression. |
+| `edb_whatis` | Print the type of an expression (short form). |
+| `edb_get_variable` | Read the value of a local or global variable in the current scope. |
+| `edb_set_variable` | Modify a variable's value in the current scope. |
+| `edb_get_string` | Read a null-terminated string from a memory address. |
+| `edb_string_references` | Find all code and data references to a string or address in the binary. |
+| `edb_watch_expression` | Add an expression to the auto-display list. Evaluated and shown on every stop. |
 
-### Patching & Annotations (8 tools)
+### Code Analysis (7 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_call_function` | Call function in debugged process |
-| `edb_label_address` | Label an address in disassembly view |
-| `edb_add_comment` | Add comment/annotation at address |
-| `edb_list_comments` | List all address annotations |
-| `edb_remove_comment` | Remove annotation at address |
-| `edb_add_bookmark` | Add bookmark at address |
-| `edb_list_bookmarks` | List all bookmarks |
-| `edb_remove_bookmark` | Remove bookmark at address |
+| `edb_analyze_region` | Analyze a code region for call instructions, branch instructions, |
+| `edb_analyze_heap` | Analyze the heap memory region of the debugged process. |
+| `edb_generate_cfg` | Generate a Control Flow Graph in Graphviz DOT format. |
+| `edb_generate_symbols` | Generate a symbol map for a binary file using EDB's symbol generator. |
+| `edb_list_source` | Display source code with line numbers. Current line is marked with '->'. |
+| `edb_list_source_files` | List all source files used by the debugged program. |
+| `edb_binary_string_convert` | Convert between hex, ASCII, and UTF-16 representations. |
+
+### Patching & Annotations (9 tools)
+
+| Tool | Description |
+|------|-------------|
+| `edb_nop_range` | Replace a range of instructions with NOP (0x90) bytes. |
+| `edb_assemble` | Assemble an assembly instruction and write it to memory. |
+| `edb_add_bookmark` | Save a named bookmark pointing to an address for quick navigation. |
+| `edb_list_bookmarks` | List all saved bookmarks with names and addresses. |
+| `edb_remove_bookmark` | Remove a bookmark by name. |
+| `edb_add_comment` | Add a text annotation to an address. Comments are stored in-memory |
+| `edb_list_comments` | List all address annotations added via edb_add_comment. |
+| `edb_remove_comment` | Remove an annotation previously added with edb_add_comment. |
+| `edb_apply_patches_to_file` | Write runtime memory modifications back to the binary file on disk. |
 
 ### Session & Environment (12 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_session_save` | Save current debugging session to JSON |
-| `edb_session_load` | Load debugging session from JSON |
-| `edb_set_working_directory` | Set program working directory |
-| `edb_set_environment_variable` | Set environment variable for debugee |
-| `edb_unset_environment_variable` | Unset environment variable |
-| `edb_get_environment` | Show environment variables |
-| `edb_set_tty` | Set terminal for program I/O |
-| `edb_configure_debugger` | Configure debugger settings |
-| `edb_show_configuration` | Show GDB configuration |
-| `edb_disable_aslr` | Toggle ASLR for debugee |
-| `edb_disable_lazy_binding` | Toggle lazy binding |
-| `edb_load_symbol_file` | Load symbol file (FAS loader) |
+| `edb_session_save` | Save the complete debugging session to a JSON file. |
+| `edb_session_load` | Load a debugging session from a JSON file. |
+| `edb_set_environment_variable` | Set an environment variable for the debugged process. |
+| `edb_get_environment` | Show all environment variables configured for the debugged process. |
+| `edb_unset_environment_variable` | Remove an environment variable from the debugged process. |
+| `edb_set_working_directory` | Set the working directory for the debugger and debugged process. |
+| `edb_set_tty` | Set the terminal device for the debugged program's I/O. |
+| `edb_set_debug_output` | Enable or disable GDB internal debug output. |
+| `edb_set_session_logging` | Log all GDB input/output to a file for debugging or record-keeping. |
+| `edb_signal_handling` | Configure how GDB handles signals (stop, print, pass to program). |
+| `edb_list_signals` | List all signals and how GDB handles them. |
+| `edb_get_stop_reason` | Determine why the process stopped (breakpoint, signal, step, etc.). |
 
-### Debugger Control (12 tools)
+### Debugger Control (18 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_get_status` | Get full debugger state |
-| `edb_get_stop_reason` | Get last stop reason |
-| `edb_instruction_detail` | Get detailed instruction info (InstructionInspector) |
-| `edb_dump_state` | Dump full process state (DumpState plugin) |
-| `edb_signal_handling` | Configure signal handling |
-| `edb_list_signals` | List signals and their handling |
-| `edb_set_debug_output` | Configure GDB debug output |
-| `edb_set_session_logging` | Log GDB I/O to file |
-| `edb_view_at_address` | View address in CPU/Dump/Stack views |
-| `edb_list_plugins` | List loaded debugger plugins |
-| `edb_list_stack_arguments` | List stack frame arguments |
-| `edb_find_rop_gadgets` | Find ROP gadgets in binary |
+| `edb_configure_debugger` | Configure GDB debugger settings. Equivalent to EDB's Configure Debugger |
+| `edb_show_configuration` | Display current debugger configuration settings. |
+| `edb_disable_aslr` | Disable or enable ASLR for debugee. |
+| `edb_disable_lazy_binding` | Disable or enable lazy binding for debugee. |
+| `edb_get_status` | Get the current debugger and process status. |
+| `edb_get_binary_info` | Get detailed information about the loaded binary file. |
+| `edb_list_features` | List GDB debugger features and capabilities. |
+| `edb_list_plugins` | List all available debugger plugins and capabilities. |
+| `edb_load_symbol_file` | Load a symbol file for the debugged program. |
+| `edb_view_at_address` | Navigate to and inspect an address across all views. |
+| `edb_find_rop_gadgets` | Search for ROP gadgets (instructions ending with 'ret') in memory. |
+| `edb_label_address` | Set a label/annotation at an address in the disassembly view. |
+| `edb_dump_state` | Dump complete debugger state: all registers, current instruction, |
+| `edb_generate_core_dump` | Generate a core dump of the current process for post-mortem analysis. |
+| `edb_execute_gdb_command` | Execute any raw GDB command directly. Full access to GDB's CLI. Powerful for adv |
+| `edb_compare_snapshot` | Save a full debugger snapshot (registers + memory) for later comparison. |
+| `edb_pipeline` | Load a binary, set breakpoint, run, and dump state in one call. |
+| `edb_export_state` | Export the complete debugger state as structured JSON. |
 
 ### File Utils (2 tools)
 
 | Tool | Description |
 |------|-------------|
-| `edb_va_to_file_offset` | Convert virtual address to file offset |
-| `edb_file_offset_to_va` | Convert file offset to virtual address |
+| `edb_va_to_file_offset` | Convert a virtual address in the loaded process to the corresponding |
+| `edb_file_offset_to_va` | Convert a file offset from the binary on disk to the corresponding |
+
+### pwntools (27 tools)
+
+| Tool | Description |
+|------|-------------|
+| `pwntools_analyze_elf` | Analyze an ELF binary using pwntools — entry point, PIE/NX/RELRO/Canary, section |
+| `pwntools_asm` | Assemble assembly instructions into hex bytes using pwntools + keystone. |
+| `pwntools_build_rop_chain` | Build a ROP chain to call a target function with arguments using pwntools ROP. |
+| `pwntools_checksec` | Check security properties of an ELF binary: RELRO, Canary, NX, PIE, RPATH/RUNPAT |
+| `pwntools_constgrep` | Search pwntools/ELF constants by name or value. |
+| `pwntools_cyclic` | Generate a cyclic pattern for buffer overflow offset discovery. |
+| `pwntools_cyclic_find` | Find the offset of a value within a cyclic pattern. |
+| `pwntools_disasm` | Disassemble raw hex bytes into assembly instructions using pwntools + capstone. |
+| `pwntools_elf_deps` | List shared library dependencies of an ELF binary (DT_NEEDED entries). |
+| `pwntools_elf_patch` | Patch bytes in an ELF binary at a given file offset. Creates a backup. |
+| `pwntools_elf_read` | Read bytes from an ELF binary at a section or address, with hex dump output. |
+| `pwntools_elf_search` | Search for a byte pattern in an ELF binary. |
+| `pwntools_elf_sections` | List all ELF sections with detailed info: type, flags, address, offset, size, al |
+| `pwntools_elf_strings` | Extract printable strings from an ELF binary, optionally filtered by section. |
+| `pwntools_elf_symbols` | Search symbols in an ELF binary by regex pattern and type. |
+| `pwntools_enc` | Encode shellcode using pwntools encoders (alphanumeric, null_free, xor). |
+| `pwntools_entropy` | Calculate byte entropy (Shannon) of a file or memory region. Useful for detectin |
+| `pwntools_erope` | Search ROP gadgets grouped by type: syscall, stack_pivot, call, jump. |
+| `pwntools_find_rop` | Search for ROP gadgets in an ELF binary using pwntools ROP engine. |
+| `pwntools_flat` | Pack a list of values/addresses into flat bytes using pwntools flat(). |
+| `pwntools_fmtstr_payload` | Generate a format string exploit payload for arbitrary writes. |
+| `pwntools_hexdump` | Display a formatted hex dump using pwntools hexdump styling. |
+| `pwntools_make_elf` | Compile assembly code into an ELF binary using pwntools make_elf. |
+| `pwntools_pack` | Pack an integer into bytes (e.g., p64, p32, p16). |
+| `pwntools_shellcraft` | Generate shellcode using pwntools shellcraft module. |
+| `pwntools_sigreturn` | Generate a Sigreturn-Oriented Programming (SROP) frame using pwntools SigreturnF |
+| `pwntools_unpack` | Unpack bytes into an integer (e.g., u64, u32, u16). |
 
 </details>
 

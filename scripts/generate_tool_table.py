@@ -34,11 +34,13 @@ CATEGORIES: list[tuple[str, str, list[str]]] = [
         "edb_set_breakpoint_ignore_count", "edb_breakpoint_commands",
         "edb_enable_breakpoint", "edb_disable_breakpoint", "edb_remove_breakpoint",
         "edb_list_breakpoints", "edb_breakpoint_export", "edb_breakpoint_import",
+        "edb_trace_start", "edb_trace_stop", "edb_trace_show",
     ]),
-    ("Register Operations", "register,fpu,simd,dump", [
+    ("Register Operations", "register,fpu,simd,dump,eflags", [
         "edb_get_registers", "edb_get_register", "edb_set_register",
         "edb_dump_registers", "edb_get_changed_registers",
         "edb_get_fpu_state", "edb_get_simd_state", "edb_get_arch_info",
+        "edb_get_eflags",
     ]),
     ("Memory Operations", "memory,hex,dump,write,search,compare", [
         "edb_read_memory", "edb_read_memory_as", "edb_write_memory",
@@ -52,35 +54,35 @@ CATEGORIES: list[tuple[str, str, list[str]]] = [
         "edb_instruction_detail", "edb_search_instructions",
         "edb_analyze_basic_blocks", "edb_analyze_calls_at",
     ]),
-    ("Stack & Frames", "stack,frame,backtrace,local,argument", [
+    ("Stack & Frames", "stack,frame,backtrace,local,argument,retaddr", [
         "edb_get_stack", "edb_get_backtrace", "edb_get_frame_info",
         "edb_get_locals", "edb_get_arguments", "edb_list_stack_arguments",
         "edb_stack_push", "edb_stack_pop", "edb_stack_modify",
-        "edb_get_stack_frame",
+        "edb_get_stack_frame", "edb_scan_stack_for_retaddr",
     ]),
     ("Symbol Analysis", "symbol,function,module,string", [
         "edb_lookup_symbol", "edb_list_functions", "edb_get_function_info",
         "edb_get_function_bounds", "edb_list_modules", "edb_get_section_info",
         "edb_get_entry_point", "edb_find_references", "edb_find_strings",
     ]),
-    ("Thread & Process", "thread,process,inferior", [
+    ("Thread & Process", "thread,process,inferior,fork", [
         "edb_list_threads", "edb_get_current_thread", "edb_set_current_thread",
-        "edb_get_process_properties", "edb_inferior_info",
+        "edb_get_process_properties", "edb_inferior_info", "edb_follow_fork",
     ]),
-    ("Expression & Data", "expression,ptype,whatis,variable,string", [
+    ("Expression & Data", "expression,ptype,whatis,variable,string,watch", [
         "edb_evaluate_expression", "edb_ptype", "edb_whatis",
         "edb_get_variable", "edb_set_variable", "edb_get_string",
-        "edb_string_references",
+        "edb_string_references", "edb_watch_expression",
     ]),
     ("Code Analysis", "analysis,calls,cfg,region,source", [
         "edb_analyze_region", "edb_analyze_heap", "edb_generate_cfg",
         "edb_generate_symbols", "edb_list_source", "edb_list_source_files",
         "edb_binary_string_convert",
     ]),
-    ("Patching & Annotations", "nop,assemble,bookmark,comment,label", [
+    ("Patching & Annotations", "nop,assemble,bookmark,comment,label,patch", [
         "edb_nop_range", "edb_assemble", "edb_add_bookmark",
         "edb_list_bookmarks", "edb_remove_bookmark", "edb_add_comment",
-        "edb_list_comments", "edb_remove_comment",
+        "edb_list_comments", "edb_remove_comment", "edb_apply_patches_to_file",
     ]),
     ("Session & Environment", "session,env,binary,file", [
         "edb_session_save", "edb_session_load", "edb_set_environment_variable",
@@ -89,13 +91,15 @@ CATEGORIES: list[tuple[str, str, list[str]]] = [
         "edb_set_session_logging", "edb_signal_handling", "edb_list_signals",
         "edb_get_stop_reason",
     ]),
-    ("Debugger Control", "config,aslr,disable,status,feature,misc", [
+    ("Debugger Control", "config,aslr,disable,status,feature,misc,command,snapshot", [
         "edb_configure_debugger", "edb_show_configuration", "edb_disable_aslr",
         "edb_disable_lazy_binding", "edb_get_status",
         "edb_get_binary_info", "edb_list_features", "edb_list_plugins",
         "edb_load_symbol_file", "edb_view_at_address",
         "edb_find_rop_gadgets", "edb_label_address",
         "edb_dump_state", "edb_generate_core_dump",
+        "edb_execute_gdb_command", "edb_compare_snapshot",
+        "edb_pipeline", "edb_export_state",
     ]),
     ("File Utils", "va,offset,file", [
         "edb_va_to_file_offset", "edb_file_offset_to_va",

@@ -2667,6 +2667,211 @@ class GDBBackend:
         except Exception as e:
             return f"Error: {e}"
 
+    async def execute_gdb_command(self, command: str, timeout: int = 10) -> str:
+        result = await self._send_command(command, timeout=float(timeout))
+        output = result.get("output", "") if isinstance(result, dict) else str(result)
+        return_output = []
+        if output.strip():
+            return_output.append(output.strip())
+        payload = result.get("payload", {}) if isinstance(result, dict) else {}
+        if isinstance(payload, dict) and payload.get("msg"):
+            return_output.append(payload["msg"].strip())
+        return "\n".join(return_output) if return_output else str(result)
+
+    async def follow_fork(self, mode: str) -> str:
+        valid = ("parent", "child")
+        if mode not in valid:
+            return f"Error: mode must be 'parent' or 'child', got '{mode}'"
+        await self._send_command(f"set follow-fork-mode {mode}")
+        return f"Fork follow mode set to '{mode}'"
+
+    async def trace_start(self, address: str = "", max_size: int = 1024) -> str:
+        await self._send_command(f"set trace-buffer-size {max_size}")
+        if address:
+            await self._send_command(f"trace {address}")
+        else:
+            await self._send_command("trace")
+        await self._send_command("tstart")
+        addr_msg = f" at {address}" if address else " (current PC)"
+        return f"Trace started{addr_msg}, buffer size={max_size}MB"
+
+    async def trace_stop(self) -> str:
+        await self._send_command("tstop")
+        return "Trace stopped"
+
+    async def trace_show(self) -> str:
+        status = await self._send_command("tstatus")
+        frames = await self._send_command("tfind")
+        dump = await self._send_command("tdump")
+        parts = []
+        if isinstance(status, dict):
+            parts.append(status.get("output", str(status)))
+        if isinstance(frames, dict):
+            frames_out = frames.get("output", "")
+            parts.append(frames_out)
+        if isinstance(dump, dict) and dump.get("output"):
+            parts.append(dump["output"])
+        return "\n\n".join(parts) if parts else "Trace: no data"
+
+    async def scan_stack_for_retaddr(self, depth: int = 64) -> str:
+        try:
+            sp_str = await self._send_command("p/x $rsp")
+            sp = 0
+            if isinstance(sp_str, dict):
+                payload = sp_str.get("payload", {})
+                if isinstance(payload, dict):
+                    msg = payload.get("msg", "")
+                else:
+                    msg = str(payload)
+            else:
+                msg = str(sp_str)
+            import re
+            m = re.search(r"0x[0-9a-fA-F]+", msg)
+            if m:
+                sp = int(m.group(), 16)
+            if not sp:
+                return "Error: could not determine RSP"
+
+            result = [f"Stack return-address scan (RSP={hex(sp)}, depth={depth}):", ""]
+            for i in range(depth):
+                addr = sp + i * 8
+                val_str = await self._send_command(f"x/gx {hex(addr)}")
+                val = 0
+                if isinstance(val_str, dict):
+                    val_text = val_str.get("output", "")
+                    m2 = re.search(r"0x[0-9a-fA-F]+", val_text)
+                    if m2:
+                        val = int(m2.group(), 16)
+                if val and 0x400000 <= val <= 0x7fffffffffff:
+                    result.append(f"  [{i:3d}] {hex(addr)} -> {hex(val)}  (likely retaddr)")
+                elif val != 0:
+                    result.append(f"  [{i:3d}] {hex(addr)} -> {hex(val)}")
+                else:
+                    result.append(f"  [{i:3d}] {hex(addr)} -> 0x0")
+            return "\n".join(result)
+        except Exception as e:
+            return f"Error: {e}"
+
+    async def watch_expression(self, expression: str) -> str:
+        result = await self._send_command(f"display {expression}")
+        if isinstance(result, dict):
+            output = result.get("output", "")
+            if output.strip():
+                return output
+        return f"Expression '{expression}' added to auto-display list"
+
+    async def apply_patches_to_file(self, output_path: str = "") -> str:
+        if not self._binary:
+            return "Error: no binary loaded"
+        import os as os_mod
+        import shutil
+        out = output_path or self._binary + ".patched"
+        shutil.copy(self._binary, out)
+        corr_segments = await self._readelf_load_segments()
+        patched = bytearray(open(out, "rb").read())
+        total_patches = 0
+        for vaddr, file_off, file_sz in corr_segments:
+            if file_sz == 0:
+                continue
+            tmpfile = f"/tmp/_edb_patch_{vaddr:x}"
+            await self._send_command(f"dump memory {tmpfile} {hex(vaddr)} {hex(vaddr + file_sz)}")
+            if os_mod.path.exists(tmpfile):
+                with open(tmpfile, "rb") as mf:
+                    mem_data = mf.read()
+                end_off = min(file_off + len(mem_data), len(patched))
+                mem_data = mem_data[:end_off - file_off]
+                old_slice = bytes(patched[file_off:file_off + len(mem_data)])
+                if mem_data != old_slice:
+                    patched[file_off:file_off + len(mem_data)] = mem_data
+                    total_patches += 1
+                os_mod.unlink(tmpfile)
+        with open(out, "wb") as f:
+            f.write(patched)
+        return f"Patched binary written to {out} ({total_patches} segments updated)"
+
+    async def get_eflags(self) -> str:
+        result = await self._send_command("info registers eflags")
+        if isinstance(result, dict):
+            output = result.get("output", "")
+            if not output.strip():
+                payload = result.get("payload", {})
+                if isinstance(payload, dict):
+                    output = payload.get("msg", "")
+            return output.strip() or "eflags: (no output)"
+        return str(result)
+
+    async def compare_snapshot(self, label: str = "") -> str:
+        import time, json
+        ts = label or f"snapshot_{int(time.time())}"
+        regs_before = await self._send_command("info registers")
+        mem_snapshots = []
+        try:
+            segs = await self._readelf_load_segments()
+            for vaddr, file_off, file_sz in segs:
+                if 0 < file_sz < 1024 * 1024 * 10:
+                    tmp = f"/tmp/_edb_snap_{vaddr:x}"
+                    await self._send_command(f"dump memory {tmp} {hex(vaddr)} {hex(vaddr + file_sz)}")
+                    mem_snapshots.append(tmp)
+        except Exception:
+            pass
+        return json.dumps({
+            "label": ts,
+            "registers": str(regs_before),
+            "memory_snapshots": len(mem_snapshots),
+            "snapshot_files": mem_snapshots,
+        }, indent=2)
+
+    async def pipeline_run(self, binary: str, breakpoint: str = "", args: str = "", dump_registers: bool = True) -> str:
+        parts = []
+        load = await self.load_program(binary, args=args)
+        parts.append(f"Load: {load}")
+        if breakpoint:
+            bp = await self.set_breakpoint(breakpoint)
+            parts.append(f"BP @ {breakpoint}: {bp}")
+        run_result = await self.run()
+        parts.append(f"Run: {'started' if run_result else 'error'}")
+        status = await self.status()
+        parts.append(f"Status: {status}")
+        if dump_registers:
+            regs = await self.get_registers()
+            parts.append(f"Registers:\n{regs}")
+        disasm = await self.disassemble("")
+        parts.append(f"Disasm:\n{disasm}")
+        return "\n\n".join(parts)
+
+    async def export_state(self) -> str:
+        if not self._binary:
+            import json
+            return json.dumps({"error": "No binary loaded"}, indent=2)
+        binary_info = await self.get_binary_info()
+        arch_info = await self.get_arch_info()
+        regs = await self.get_registers()
+        stack = await self.get_stack()
+        bp_list = await self.list_breakpoints()
+        modules = await self.list_modules()
+        status = await self.status()
+        entry = ""
+        try:
+            pwn = __import__("pwn", fromlist=["ELF"])
+            pwn.context.log_level = "error"
+            elf = pwn.ELF(self._binary, checksec=False)
+            entry = hex(elf.entry) if hasattr(elf, "entry") else ""
+        except Exception:
+            entry = ""
+        import json
+        state = {
+            "binary": self._binary,
+            "entry_point": entry,
+            "binary_info": binary_info,
+            "arch_info": arch_info,
+            "registers": regs,
+            "stack": stack,
+            "breakpoints": bp_list,
+            "modules": modules,
+            "status": status,
+        }
+        return json.dumps(state, indent=2, ensure_ascii=False)
+
     async def quit(self) -> None:
         await self._cleanup()
         self._binary = None

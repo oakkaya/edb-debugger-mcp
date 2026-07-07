@@ -1,6 +1,7 @@
 """Pydantic models for EDB Debugger MCP tool parameters."""
 
 from typing import Optional
+from typing_extensions import Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -445,3 +446,40 @@ class BinaryStringConvertInput(BaseModel):
     hex_str: Optional[str] = Field(default=None, description="Hex string (e.g., '48656c6c6f' or '48 65 6c 6c 6f' or '\\x48\\x65\\x6c\\x6c\\x6f')")
     ascii_str: Optional[str] = Field(default=None, description="ASCII string (e.g., 'Hello')")
     utf16_str: Optional[str] = Field(default=None, description="UTF-16 hex string (e.g., '480065006c006c006f00')")
+
+class ExecuteGdbInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    command: str = Field(..., description="Raw GDB command to execute (e.g., 'info registers', 'bt full')")
+    timeout: int = Field(default=10, description="Command timeout in seconds", ge=1, le=60)
+
+class FollowForkInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    mode: Literal["parent", "child"] = Field(default="child", description="Fork follow mode: 'parent' or 'child'")
+
+class TraceStartInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    address: Optional[str] = Field(default=None, description="Optional address/function to trace (e.g., 'main', '0x401000')")
+    max_size: int = Field(default=1024, description="Max trace buffer size in MB", ge=1, le=4096)
+
+class ScanStackForRetaddrInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    depth: int = Field(default=64, description="Number of stack entries to scan from RSP", ge=8, le=512)
+
+class WatchExpressionInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    expression: str = Field(..., description="Expression to watch (e.g., '$rax', 'var', '*(int*)0x804a000')", min_length=1)
+
+class ApplyPatchesInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    output_path: Optional[str] = Field(default=None, description="Output file path (default: <binary>.patched)")
+
+class CompareSnapshotInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    label: Optional[str] = Field(default=None, description="Snapshot label (default: auto timestamp)")
+
+class PipelineInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    binary: str = Field(..., description="Binary path to load", min_length=1)
+    breakpoint: Optional[str] = Field(default=None, description="Optional breakpoint (function or address)")
+    args: Optional[str] = Field(default=None, description="Optional program arguments")
+    dump_registers: bool = Field(default=True, description="Dump registers after stop")

@@ -3134,6 +3134,157 @@ async def edb_binary_string_convert(params: BinaryStringConvertInput) -> str:
         return f"Error: Unexpected error: {e}"
 
 
+@mcp.tool(
+    name="edb_execute_gdb_command",
+    annotations={"title": "Execute Raw GDB Command", "readOnlyHint": True, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_execute_gdb_command(params: ExecuteGdbInput) -> str:
+    '''Execute any raw GDB command directly. Full access to GDB's CLI. Powerful for advanced debugging.'''
+    try:
+        return await backend.execute_gdb_command(params.command, params.timeout)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_follow_fork",
+    annotations={"title": "Set Fork Follow Mode", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_follow_fork(params: FollowForkInput) -> str:
+    '''Set whether the debugger follows the parent or child process after a fork.'''
+    try:
+        return await backend.follow_fork(params.mode)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_trace_start",
+    annotations={"title": "Start Execution Trace", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_trace_start(params: TraceStartInput) -> str:
+    '''Start an execution trace at an address/function. Records every instruction execution.'''
+    try:
+        return await backend.trace_start(params.address or "", params.max_size)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_trace_stop",
+    annotations={"title": "Stop Execution Trace", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_trace_stop() -> str:
+    '''Stop the current execution trace session.'''
+    try:
+        return await backend.trace_stop()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_trace_show",
+    annotations={"title": "Show Trace Data", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_trace_show() -> str:
+    '''Show execution trace status, frames, and collected data.'''
+    try:
+        return await backend.trace_show()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_scan_stack_for_retaddr",
+    annotations={"title": "Scan Stack for Return Addresses", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_scan_stack_for_retaddr(params: ScanStackForRetaddrInput) -> str:
+    '''Scan the stack for potential return addresses (values in valid text ranges). Useful for ROP/exploit analysis.'''
+    try:
+        return await backend.scan_stack_for_retaddr(params.depth)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_watch_expression",
+    annotations={"title": "Watch Expression", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_watch_expression(params: WatchExpressionInput) -> str:
+    '''Add an expression to the auto-display list. Evaluated and shown on every stop.'''
+    try:
+        return await backend.watch_expression(params.expression)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_apply_patches_to_file",
+    annotations={"title": "Apply Memory Patches to Binary", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_apply_patches_to_file(params: ApplyPatchesInput) -> str:
+    '''Write runtime memory modifications back to the binary file on disk.'''
+    try:
+        return await backend.apply_patches_to_file(params.output_path or "")
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_get_eflags",
+    annotations={"title": "Get EFLAGS Register", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_get_eflags() -> str:
+    '''Show the EFLAGS/RFLAGS CPU status register with individual flag states.'''
+    try:
+        return await backend.get_eflags()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_compare_snapshot",
+    annotations={"title": "Compare Debugger Snapshot", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_compare_snapshot(params: CompareSnapshotInput) -> str:
+    '''Save a full debugger snapshot (registers + memory) for later comparison.'''
+    try:
+        return await backend.compare_snapshot(params.label or "")
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_pipeline",
+    annotations={"title": "Pipeline: Load -> BP -> Run -> Dump", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def edb_pipeline(params: PipelineInput) -> str:
+    '''Load a binary, set breakpoint, run, and dump state in one call.'''
+    try:
+        return await backend.pipeline_run(
+            params.binary,
+            breakpoint=params.breakpoint or "",
+            args=params.args or "",
+            dump_registers=params.dump_registers
+        )
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="edb_export_state",
+    annotations={"title": "Export Debugger State", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_export_state() -> str:
+    '''Export the complete debugger state as structured JSON.'''
+    try:
+        return await backend.export_state()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+
+
 def main():
     try:
         mcp.run()

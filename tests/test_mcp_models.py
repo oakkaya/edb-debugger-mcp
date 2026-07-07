@@ -290,6 +290,105 @@ class TestMemoryPermissionsInput:
         assert m.permissions == "r--"
 
 
+class TestExecuteGdb:
+    def test_valid_short_cmd(self):
+        m = mcp_module.ExecuteGdbInput(command="info registers", timeout=10)
+        assert m.command == "info registers"
+        assert m.timeout == 10
+
+    def test_invalid_timeout(self):
+        with pytest.raises(ValidationError):
+            mcp_module.ExecuteGdbInput(command="info registers", timeout=0)
+
+
+class TestFollowFork:
+    def test_valid_parent(self):
+        m = mcp_module.FollowForkInput(mode="parent")
+        assert m.mode == "parent"
+
+    def test_valid_child(self):
+        m = mcp_module.FollowForkInput(mode="child")
+        assert m.mode == "child"
+
+    def test_invalid_mode(self):
+        with pytest.raises(ValidationError):
+            mcp_module.FollowForkInput(mode="invalid")
+
+
+class TestTraceStart:
+    def test_valid_no_address(self):
+        m = mcp_module.TraceStartInput(max_size=100)
+        assert m.address is None
+        assert m.max_size == 100
+
+    def test_valid_with_address(self):
+        m = mcp_module.TraceStartInput(address="main", max_size=500)
+        assert m.address == "main"
+        assert m.max_size == 500
+
+
+class TestScanStackForRetaddr:
+    def test_valid(self):
+        m = mcp_module.ScanStackForRetaddrInput(depth=64)
+        assert m.depth == 64
+
+    def test_default_depth(self):
+        m = mcp_module.ScanStackForRetaddrInput()
+        assert m.depth == 64
+
+    def test_invalid_depth(self):
+        with pytest.raises(ValidationError):
+            mcp_module.ScanStackForRetaddrInput(depth=0)
+
+
+class TestWatchExpression:
+    def test_valid(self):
+        m = mcp_module.WatchExpressionInput(expression="$rax")
+        assert m.expression == "$rax"
+
+    def test_empty_fails(self):
+        with pytest.raises(ValidationError):
+            mcp_module.WatchExpressionInput(expression="")
+
+
+class TestApplyPatches:
+    def test_no_output(self):
+        m = mcp_module.ApplyPatchesInput()
+        assert m.output_path is None
+
+    def test_with_output(self):
+        m = mcp_module.ApplyPatchesInput(output_path="/tmp/patched")
+        assert m.output_path == "/tmp/patched"
+
+
+class TestCompareSnapshot:
+    def test_no_label(self):
+        m = mcp_module.CompareSnapshotInput()
+        assert m.label is None
+
+    def test_with_label(self):
+        m = mcp_module.CompareSnapshotInput(label="before_patch")
+        assert m.label == "before_patch"
+
+
+class TestPipeline:
+    def test_minimal(self):
+        m = mcp_module.PipelineInput(binary="/tmp/test.elf")
+        assert m.binary == "/tmp/test.elf"
+        assert m.breakpoint is None
+
+    def test_full(self):
+        m = mcp_module.PipelineInput(
+            binary="/tmp/test.elf", breakpoint="main",
+            args="--flag", dump_registers=True
+        )
+        assert m.dump_registers is True
+
+    def test_empty_binary_fails(self):
+        with pytest.raises(ValidationError):
+            mcp_module.PipelineInput(binary="")
+
+
 class TestScopeGuard:
     """Ensure extra fields are rejected across all models."""
 
@@ -321,7 +420,14 @@ class TestScopeGuard:
         (mcp_module.WorkingDirectoryInput, {"directory": "/tmp"}),
         (mcp_module.MemoryPermissionsInput, {"address": "0x0", "permissions": "rwx"}),
         (mcp_module.TTYInput, {"tty_path": "/dev/pts/0"}),
-
+        (mcp_module.ExecuteGdbInput, {"command": "bt", "timeout": 10}),
+        (mcp_module.FollowForkInput, {"mode": "parent"}),
+        (mcp_module.TraceStartInput, {"max_size": 100}),
+        (mcp_module.ScanStackForRetaddrInput, {"depth": 64}),
+        (mcp_module.WatchExpressionInput, {"expression": "$rax"}),
+        (mcp_module.ApplyPatchesInput, {}),
+        (mcp_module.CompareSnapshotInput, {"label": "x"}),
+        (mcp_module.PipelineInput, {"binary": "/tmp/x"}),
     ])
     def test_extra_fields_rejected(self, model_cls, valid_kwargs):
         with pytest.raises(ValidationError):
