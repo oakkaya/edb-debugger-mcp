@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import asyncio
 import json
 import datetime
@@ -22,6 +23,12 @@ import uvicorn
 client = MCPClient()
 history: list = []
 SESSIONS_DIR = Path("/tmp/edb-sessions")
+
+def _safe_session_name(name: str) -> str:
+    safe = re.sub(r'[^a-zA-Z0-9_\-]', '', name.strip())
+    if not safe:
+        raise ValueError("Invalid session name")
+    return safe
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 _prev_registers = {}
 
@@ -375,12 +382,13 @@ async def save_session(request: Request):
     body = await request.json()
     name = body.get("name", "unnamed")
     try:
+        safe_name = _safe_session_name(name)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, client.call_tool, "edb_session_save", {"name": name})
+        result = await loop.run_in_executor(None, client.call_tool, "edb_session_save", {"name": safe_name})
         SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-        marker = SESSIONS_DIR / f"{name}.json"
+        marker = SESSIONS_DIR / f"{safe_name}.json"
         marker.write_text(json.dumps({
-            "name": name,
+            "name": safe_name,
             "saved_at": datetime.datetime.now().isoformat(),
             "result": str(result)
         }))
@@ -392,8 +400,9 @@ async def save_session(request: Request):
 @app.post("/api/sessions/load/{name}")
 async def load_session(name: str):
     try:
+        safe_name = _safe_session_name(name)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, client.call_tool, "edb_session_load", {"name": name})
+        result = await loop.run_in_executor(None, client.call_tool, "edb_session_load", {"name": safe_name})
         return result
     except Exception as e:
         return {"result": f"Error: {e}", "isError": True}
@@ -401,7 +410,11 @@ async def load_session(name: str):
 
 @app.delete("/api/sessions/{name}")
 async def delete_session(name: str):
-    session_file = SESSIONS_DIR / f"{name}.json"
+    try:
+        safe_name = _safe_session_name(name)
+        session_file = SESSIONS_DIR / f"{safe_name}.json"
+    except ValueError:
+        return JSONResponse({"error": "Invalid session name"}, status_code=400)
     if session_file.exists():
         session_file.unlink()
         return {"ok": True}
