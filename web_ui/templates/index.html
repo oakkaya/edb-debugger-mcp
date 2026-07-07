@@ -574,6 +574,7 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
 <header>
   <h1><span>EDB</span> Debugger MCP <small>Web UI</small></h1>
   <div style="display:flex;align-items:center;gap:8px">
+    <button id="theme-btn" onclick="toggleTheme()" title="Toggle theme" style="background:none;border:1px solid var(--border);border-radius:3px;color:var(--text-dim);font-size:14px;cursor:pointer;padding:2px 6px;line-height:1">☀</button>
     <span id="state-indicator" style="font-size:10px;color:var(--text-dim)">Idle</span>
     <span id="status-badge">Connected</span>
   </div>
@@ -583,6 +584,7 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
   <button class="tab-btn active" data-tab="console" onclick="switchTab('console')">Console</button>
   <button class="tab-btn" data-tab="state" hx-get="/api/tabs/state" hx-target="#tab-state" hx-trigger="click once" onclick="switchTab('state')">State</button>
   <button class="tab-btn" data-tab="memory" onclick="switchTab('memory'); setTimeout(initMemoryViewer, 50)">Memory</button>
+  <button class="tab-btn" data-tab="disasm" onclick="switchTab('disasm'); setTimeout(initDisasmView, 50)">Disasm</button>
   <button class="tab-btn" data-tab="history" hx-get="/api/tabs/history" hx-target="#tab-history" hx-trigger="click once" onclick="switchTab('history')">History</button>
   <button class="tab-btn" data-tab="sessions" hx-get="/api/tabs/sessions" hx-target="#tab-sessions" hx-trigger="click once" onclick="switchTab('sessions')">Sessions</button>
 </nav>
@@ -695,6 +697,7 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
         <input id="mem-addr" type="text" value="0x400000" placeholder="Address (hex)" style="width:160px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
         <input id="mem-size" type="number" value="256" min="16" max="4096" placeholder="Size" style="width:80px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
         <button onclick="refreshMemoryView()" style="padding:6px 16px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer">⟳ Read</button>
+        <button onclick="toggleMemEdit()" id="mem-edit-btn" style="padding:6px 16px;background:var(--code-bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer">✎ Edit</button>
         <button onclick="refreshState()" style="padding:6px 16px;background:var(--code-bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:12px;cursor:pointer">⟳ Refresh State</button>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:8px;flex-shrink:0;align-items:center">
@@ -702,9 +705,23 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
           <input type="checkbox" id="mem-auto-refresh" onchange="toggleMemoryAutoRefresh()"> Auto-refresh
         </label>
         <span style="font-size:10px;color:var(--text-dim)" id="mem-status">Idle</span>
+        <input type="hidden" id="mem-edit-mode" value="false">
       </div>
       <div id="mem-hexdump" style="flex:1;overflow:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:12px;line-height:1.5;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;padding:8px">
         <span style="color:var(--text-dim)">Enter an address and click Read.</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-disasm" class="tab-pane">
+    <div class="tab-padded" style="display:flex;flex-direction:column;height:100%">
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-shrink:0;flex-wrap:wrap">
+        <input id="disasm-addr" type="text" value="entry" placeholder="Address (hex or symbol)" style="width:200px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
+        <input id="disasm-count" type="number" value="32" min="1" max="256" style="width:70px;padding:6px 10px;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:monospace;font-size:12px">
+        <button onclick="refreshDisasm()" style="padding:6px 16px;background:var(--accent);color:#000;border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer">⟳ Disassemble</button>
+      </div>
+      <div id="disasm-output" style="flex:1;overflow:auto;font-family:'SF Mono',Monaco,'Cascadia Code',monospace;font-size:12px;line-height:1.5;background:var(--code-bg);border:1px solid var(--border);border-radius:4px;padding:8px">
+        <span style="color:var(--text-dim)">Enter an address and click Disassemble.</span>
       </div>
     </div>
   </div>
@@ -875,8 +892,6 @@ function isStateChanging(name) {
     'edb_reverse_continue','edb_continue_to','edb_set_register','edb_write_memory',
     'edb_load_program','edb_kill_process','edb_jump_to_address', 'edb_session_load'];
   return changing.includes(name);
-}
-
 }
 
 function toggleState() {
@@ -1119,7 +1134,7 @@ async function refreshState() {
             cls += ' diff-up';
             arrow = '<span class="diff-arrow up">▲</span>';
           }
-          regsHtml += `<div class="${cls}"><span class="reg-name">${r}</span><span class="reg-val">${val}</span>${arrow}</div>`;
+          regsHtml += `<div class="${cls}"><span class="reg-name">${r}</span><span class="reg-val" style="cursor:pointer" onclick="editRegister('${r}')" title="Click to edit">${val}</span>${arrow}</div>`;
         }
       }
       if (!regsHtml) regsHtml = '<span style="color:var(--text-dim)">Parsing error</span>';
@@ -1136,6 +1151,97 @@ async function refreshState() {
   }
   btn.textContent = '⟳ Refresh';
   btn.disabled = false;
+}
+
+/* --- Disassembly View --- */
+async function refreshDisasm() {
+  const addr = document.getElementById('disasm-addr').value.trim();
+  const count = parseInt(document.getElementById('disasm-count').value, 10) || 32;
+  const output = document.getElementById('disasm-output');
+  output.innerHTML = '<span class="loading-indicator"></span> Disassembling...';
+  try {
+    const resp = await fetch(`/api/disasm?address=${encodeURIComponent(addr)}&count=${count}`);
+    const data = await resp.json();
+    if (data.error) {
+      output.innerHTML = '<span class="error">Error: ' + escapeHtml(data.message) + '</span>';
+      return;
+    }
+    output.innerHTML = '<span class="prompt">$ disasm ' + escapeHtml(addr) + '</span>\n\n' + escapeHtml(data.result || '(no output)');
+  } catch (e) {
+    output.innerHTML = '<span class="error">Error: ' + escapeHtml(String(e)) + '</span>';
+  }
+}
+
+function initDisasmView() {
+  refreshDisasm();
+}
+
+/* --- Theme Toggle --- */
+let darkTheme = localStorage.getItem('edb-theme') !== 'light';
+function toggleTheme() {
+  darkTheme = !darkTheme;
+  const root = document.documentElement;
+  if (darkTheme) {
+    root.style.setProperty('--bg', '#0d1117');
+    root.style.setProperty('--surface', '#161b22');
+    root.style.setProperty('--border', '#30363d');
+    root.style.setProperty('--text', '#c9d1d9');
+    root.style.setProperty('--text-dim', '#8b949e');
+    root.style.setProperty('--code-bg', '#1c2128');
+    document.getElementById('theme-btn').textContent = '☀';
+    localStorage.setItem('edb-theme', 'dark');
+  } else {
+    root.style.setProperty('--bg', '#ffffff');
+    root.style.setProperty('--surface', '#f6f8fa');
+    root.style.setProperty('--border', '#d0d7de');
+    root.style.setProperty('--text', '#24292f');
+    root.style.setProperty('--text-dim', '#656d76');
+    root.style.setProperty('--code-bg', '#f0f2f5');
+    document.getElementById('theme-btn').textContent = '☾';
+    localStorage.setItem('edb-theme', 'light');
+  }
+}
+
+/* Apply saved theme on load */
+(function() {
+  if (localStorage.getItem('edb-theme') === 'light') {
+    toggleTheme();
+  }
+})();
+
+/* --- Hex Editor --- */
+let memEditMode = false;
+function toggleMemEdit() {
+  memEditMode = !memEditMode;
+  const btn = document.getElementById('mem-edit-btn');
+  btn.textContent = memEditMode ? '✎ Editing' : '✎ Edit';
+  btn.style.background = memEditMode ? 'var(--accent)' : 'var(--code-bg)';
+  btn.style.color = memEditMode ? '#000' : 'var(--text)';
+  document.querySelectorAll('.hex-bytes').forEach(el => {
+    el.style.cursor = memEditMode ? 'pointer' : 'default';
+    el.title = memEditMode ? 'Click a byte to edit' : '';
+  });
+}
+
+/* Register editing from state panel */
+function editRegister(name) {
+  const newVal = prompt('Enter new value for ' + name + ' (hex, e.g., 0x0):');
+  if (!newVal) return;
+  fetch('/api/register/set', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name: name, value: newVal})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.error) {
+      showToast('Failed: ' + data.message, 'error');
+    } else {
+      showToast(name + ' = ' + newVal, 'success');
+      refreshState();
+    }
+  })
+  .catch(err => showToast('Error: ' + String(err), 'error'));
 }
 
 /* Keyboard shortcuts */

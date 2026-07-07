@@ -273,6 +273,40 @@ async def memory_hex(address: str = Query("0x400000", description="Address to re
         return {"error": True, "message": str(e)}
 
 
+@app.get("/api/disasm")
+async def disasm_view(address: str = Query("entry", description="Address to disassemble at"),
+                       count: int = Query(32, description="Number of instructions", ge=1, le=256)):
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_disassemble", {"address": address, "count": count})
+        return {"result": result.get("result", ""), "error": False}
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
+@app.get("/api/disasm/functions")
+async def disasm_functions():
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_list_functions", {})
+        return {"result": result.get("result", ""), "error": False}
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
+@app.post("/api/register/set")
+async def set_register(request: Request):
+    body = await request.json()
+    name = body.get("name", "")
+    value = body.get("value", "")
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, client.call_tool, "edb_set_register", {"register": name, "value": value})
+        return {"result": result.get("result", ""), "error": False}
+    except Exception as e:
+        return {"error": True, "message": str(e)}
+
+
 @app.get("/api/state/v2")
 async def get_state_v2():
     global _prev_registers

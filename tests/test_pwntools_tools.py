@@ -149,7 +149,7 @@ def _await(coro):
 
 class TestBackendPwntoolsDetection:
     def test_pwntools_available_flag(self):
-        assert GDBBackend()._pwntools_available is True
+        assert GDBBackend().pwntools_available is True
 
     @pytest.mark.asyncio
     async def test_readelf_load_segments_uses_pwntools(self, test_binary):

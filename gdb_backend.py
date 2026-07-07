@@ -3,6 +3,7 @@ import json
 import os
 import re
 import signal
+from functools import lru_cache
 from typing import Optional
 
 
@@ -12,6 +13,12 @@ class GDBBackendError(Exception):
 
 class GDBBackend:
     _instance: Optional["GDBBackend"] = None
+
+    # Pre-compiled regex for GDB MI parsing
+    _RE_BRACKET_DEPTH = staticmethod(re.compile(r'[\{\[]').findall)
+    _RE_STRIP_QUOTES = staticmethod(lambda s: s.strip().strip('"'))
+    _RE_IS_HEX = staticmethod(re.compile(r'^0x[0-9a-fA-F]+$').match)
+    _RE_IS_DEC = staticmethod(re.compile(r'^-?\d+$').match)
 
     def __init__(self):
         self._process: Optional[asyncio.subprocess.Process] = None
@@ -25,13 +32,20 @@ class GDBBackend:
         self._async_events: list[dict] = []
         self._patch_history: list[dict] = []
         self._gdb_version_checked = False
-        self._pwntools_available: bool = False
-        try:
-            import pwn
-            pwn.context.log_level = "error"
-            self._pwntools_available = True
-        except ImportError:
-            self._pwntools_available = False
+        self._pwntools_ready: bool = False
+        self._function_cache: Optional[str] = None  # cached info functions
+        self._pwntools_checked: bool = False
+
+    @property
+    def pwntools_available(self) -> bool:
+        if not self._pwntools_checked:
+            self._pwntools_checked = True
+            try:
+                import pwn  # noqa: F401
+                self._pwntools_ready = True
+            except ImportError:
+                self._pwntools_ready = False
+        return self._pwntools_ready
 
     @classmethod
     def get_instance(cls) -> "GDBBackend":
@@ -297,6 +311,7 @@ class GDBBackend:
         parsed = self._parse_mi_result(output)
         self._check_error(parsed)
         self._running = False
+        self._function_cache = None  # invalidate function cache
         if args:
             await self._send_command(f"-exec-arguments {args}")
         return f"Loaded: {self._binary}"
@@ -1069,7 +1084,7 @@ class GDBBackend:
             return 0
         if not self._binary:
             return 0
-        if self._pwntools_available:
+        if self.pwntools_available:
             try:
                 from pwn import ELF
                 elf = ELF(self._binary)
@@ -1094,7 +1109,7 @@ class GDBBackend:
     async def _readelf_load_segments(self) -> list:
         if not self._binary:
             return []
-        if self._pwntools_available:
+        if self.pwntools_available:
             try:
                 from pwn import ELF
                 elf = ELF(self._binary)
@@ -1392,7 +1407,7 @@ class GDBBackend:
     async def get_binary_info(self) -> str:
         if not self._binary:
             return "No binary loaded"
-        if self._pwntools_available:
+        if self.pwntools_available:
             try:
                 from pwn import ELF
                 elf = ELF(self._binary)
@@ -1456,7 +1471,7 @@ class GDBBackend:
 
     async def find_rop_gadgets(self, address: str = "", depth: int = 2, count: int = 100) -> str:
         if not address:
-            if self._pwntools_available and self._binary:
+            if self.pwntools_available and self._binary:
                 try:
                     from pwn import ROP, ELF
                     elf = ELF(self._binary)
@@ -1726,7 +1741,7 @@ class GDBBackend:
             except Exception:
                 pass
         if self._binary:
-            if self._pwntools_available:
+            if self.pwntools_available:
                 try:
                     from pwn import ELF
                     elf = ELF(self._binary)
@@ -2998,7 +3013,7 @@ class GDBBackend:
 
         Uses pwntools internally. Requires pwntools to be installed.
         """
-        if not self._pwntools_available:
+        if not self.pwntools_available:
             return "Error: pwntools not available (pip install pwntools)"
         try:
             import pwn
@@ -3081,6 +3096,15 @@ class GDBBackend:
             return "\n".join(result_lines)
         except Exception as e:
             return f"Error generating exploit: {e}"
+
+    async def list_functions(self) -> str:
+        """Return list of all functions (cached for 5 seconds)."""
+        if self._function_cache is not None:
+            return self._function_cache
+        resp = await self._send_command("info functions")
+        text = str(resp) if isinstance(resp, str) else str(resp)
+        self._function_cache = text
+        return text
 
     async def get_function_xrefs(self, address: str) -> str:
         """Show cross-references to a given address or symbol."""
