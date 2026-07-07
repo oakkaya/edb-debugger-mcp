@@ -895,3 +895,340 @@ async def pwntools_constgrep(params: ConstGrepParams) -> str:
             return f"No constants found matching '{params.search}'"
     except Exception as e:
         return f"Error: {e}"
+
+
+class FlatParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    values: str = Field(..., description="JSON array of values to flatten: [addr_or_int, ...] or flat dict")
+    arch: str = Field(default="amd64", description="Architecture: amd64, i386, arm, aarch64")
+    endian: str = Field(default="little", description="Endianness: little or big")
+    pack_size: int = Field(default=8, description="Default pack size for integers: 4 (i386) or 8 (amd64)", ge=4, le=8)
+
+
+class SigreturnFrameParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    arch: str = Field(default="amd64", description="Architecture: amd64 or i386")
+    rax: Optional[str] = Field(default=None, description="RAX value (syscall number for SROP)")
+    rdi: Optional[str] = Field(default=None, description="RDI value (arg1)")
+    rsi: Optional[str] = Field(default=None, description="RSI value (arg2)")
+    rdx: Optional[str] = Field(default=None, description="RDX value (arg3)")
+    rip: Optional[str] = Field(default=None, description="RIP value (return address after sigreturn)")
+
+
+class ElfPatchParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    offset: int = Field(..., description="File offset (not virtual address) to patch", ge=0)
+    bytes: str = Field(..., description="Hex bytes to write (e.g. '90 90' or '9090')")
+
+
+class ElfSearchParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    pattern: str = Field(..., description="Hex pattern to search for (e.g. '48 31 c0' or '4831c0')")
+    start: Optional[int] = Field(default=None, description="Start offset (file offset, default: 0)")
+    end: Optional[int] = Field(default=None, description="End offset (file offset, default: file size)")
+
+
+class MakeElfParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    code: str = Field(..., description="Assembly code (e.g. 'mov rax, 60; xor rdi, rdi; syscall')")
+    arch: str = Field(default="amd64", description="Architecture: amd64, i386, arm, aarch64")
+    output: Optional[str] = Field(default=None, description="Output path (default: temp file)")
+
+
+@mcp.tool(
+    name="pwntools_flat",
+    annotations={"title": "Flat / Pack Values", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_flat(params: FlatParams) -> str:
+    '''Pack a list of values/addresses into flat bytes using pwntools flat().'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pwn.context.clear()
+        pwn.context.update(arch=params.arch, os="linux", endian=params.endian, log_level="error")
+        if params.pack_size == 4:
+            pwn.context.bits = 32
+
+        try:
+            values = json.loads(params.values)
+        except (json.JSONDecodeError, TypeError):
+            import ast
+            values = ast.literal_eval(params.values)
+        packed = pwn.flat(values)
+        result = [
+            f"=== Flat ({len(packed)} bytes) ===",
+            f"  Values: {params.values[:200]}{'...' if len(params.values) > 200 else ''}",
+            f"  Arch: {params.arch}  Endian: {params.endian}",
+            "",
+            "  Hex:",
+        ]
+        for i in range(0, len(packed), 16):
+            chunk = packed[i:i+16]
+            hex_str = " ".join(f"{b:02x}" for b in chunk)
+            ascii_str = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+            result.append(f"    {i:04x}: {hex_str:48s} {ascii_str}")
+        result.append("")
+        c_bytes = "".join(f"\\x{b:02x}" for b in packed)
+        result.append(f"  C-array: unsigned char payload[] = {{")
+        result.append(f"    {c_bytes}")
+        result.append(f"  }};")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_sigreturn",
+    annotations={"title": "Generate SROP Frame", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_sigreturn(params: SigreturnFrameParams) -> str:
+    '''Generate a Sigreturn-Oriented Programming (SROP) frame using pwntools SigreturnFrame.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pwn.context.clear()
+        pwn.context.update(arch=params.arch, os="linux", log_level="error")
+
+        frame = pwn.SigreturnFrame()
+        reg_map = {
+            "amd64": {"rax": "rax", "rdi": "rdi", "rsi": "rsi", "rdx": "rdx", "rip": "rip"},
+            "i386": {"rax": "eax", "rdi": "edi", "rsi": "esi", "rdx": "edx", "rip": "eip"},
+        }
+        regs = reg_map.get(params.arch, reg_map["amd64"])
+
+        if params.rax:
+            setattr(frame, regs["rax"], int(params.rax, 0))
+        if params.rdi:
+            setattr(frame, regs["rdi"], int(params.rdi, 0))
+        if params.rsi:
+            setattr(frame, regs["rsi"], int(params.rsi, 0))
+        if params.rdx:
+            setattr(frame, regs["rdx"], int(params.rdx, 0))
+        if params.rip:
+            setattr(frame, regs["rip"], int(params.rip, 0))
+
+        packed = bytes(frame)
+        result = [
+            f"=== SROP Frame ({params.arch}) ===",
+            f"  Size: {len(packed)} bytes",
+            "",
+            "  Register layout:",
+        ]
+        if params.arch == "amd64":
+            result.append(f"    rax = {hex(getattr(frame, 'rax', 0))}")
+            result.append(f"    rdi = {hex(getattr(frame, 'rdi', 0))}")
+            result.append(f"    rsi = {hex(getattr(frame, 'rsi', 0))}")
+            result.append(f"    rdx = {hex(getattr(frame, 'rdx', 0))}")
+            result.append(f"    r10 = {hex(getattr(frame, 'r10', 0))}")
+            result.append(f"    r8  = {hex(getattr(frame, 'r8', 0))}")
+            result.append(f"    r9  = {hex(getattr(frame, 'r9', 0))}")
+            result.append(f"    rip = {hex(getattr(frame, 'rip', 0))}")
+            result.append(f"    cs  = {hex(getattr(frame, 'cs', 0))}")
+            result.append(f"    rflags = {hex(getattr(frame, 'rflags', 0))}")
+            result.append(f"    rsp = {hex(getattr(frame, 'rsp', 0))}")
+            result.append(f"    ss  = {hex(getattr(frame, 'ss', 0))}")
+        else:
+            result.append(f"    eax = {hex(getattr(frame, 'eax', 0))}")
+            result.append(f"    ebx = {hex(getattr(frame, 'ebx', 0))}")
+            result.append(f"    ecx = {hex(getattr(frame, 'ecx', 0))}")
+            result.append(f"    edx = {hex(getattr(frame, 'edx', 0))}")
+            result.append(f"    esi = {hex(getattr(frame, 'esi', 0))}")
+            result.append(f"    edi = {hex(getattr(frame, 'edi', 0))}")
+            result.append(f"    eip = {hex(getattr(frame, 'eip', 0))}")
+
+        result.append("")
+        result.append("  Hex bytes:")
+        for i in range(0, len(packed), 16):
+            chunk = packed[i:i+16]
+            hex_str = " ".join(f"{b:02x}" for b in chunk)
+            result.append(f"    {i:04x}: {hex_str}")
+        result.append("")
+        result.append("  Usage: Place frame on stack, set RAX=15 (sigreturn), then syscall")
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_patch",
+    annotations={"title": "Patch ELF Binary", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_elf_patch(params: ElfPatchParams) -> str:
+    '''Patch bytes in an ELF binary at a given file offset. Creates a backup.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        data = bytes.fromhex(params.bytes.replace(" ", "").replace("\\x", ""))
+
+        with open(params.path, "rb") as f:
+            original = f.read()
+
+        if params.offset + len(data) > len(original):
+            return (f"Error: patch at offset {params.offset} with {len(data)} bytes "
+                    f"exceeds file size ({len(original)})")
+
+        patched = bytearray(original)
+        old_bytes = bytes(patched[params.offset:params.offset + len(data)])
+        patched[params.offset:params.offset + len(data)] = data
+
+        backup_path = params.path + ".bak"
+        with open(backup_path, "wb") as f:
+            f.write(original)
+
+        with open(params.path, "wb") as f:
+            f.write(patched)
+
+        result = [
+            f"=== ELF Patched: {params.path} ===",
+            f"  Offset: {hex(params.offset)}",
+            f"  Size: {len(data)} bytes",
+            f"  Backup: {backup_path}",
+            "",
+            f"  Old: {' '.join(f'{b:02x}' for b in old_bytes)}",
+            f"  New: {' '.join(f'{b:02x}' for b in data)}",
+        ]
+
+        if old_bytes != data:
+            val = pwn.hexdump(old_bytes)
+            result.append(f"\n  Old hexdump:\n{val}")
+            val = pwn.hexdump(data)
+            result.append(f"\n  New hexdump:\n{val}")
+
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_elf_search",
+    annotations={"title": "Search ELF Binary", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def pwntools_elf_search(params: ElfSearchParams) -> str:
+    '''Search for a byte pattern in an ELF binary.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pattern_bytes = bytes.fromhex(params.pattern.replace(" ", "").replace("\\x", ""))
+
+        with open(params.path, "rb") as f:
+            data = f.read()
+
+        start = params.start or 0
+        end = params.end or len(data)
+        search_region = data[start:end]
+
+        matches = []
+        pos = 0
+        while True:
+            pos = search_region.find(pattern_bytes, pos)
+            if pos == -1:
+                break
+            matches.append(start + pos)
+            pos += 1
+
+        elf = pwn.ELF(params.path, checksec=False)
+        result = [
+            f"=== Search in {params.path} ===",
+            f"  Pattern: {' '.join(f'{b:02x}' for b in pattern_bytes)} ({len(pattern_bytes)} bytes)",
+            f"  Range: {hex(start)} - {hex(end)} ({end - start} bytes)",
+            f"  Matches: {len(matches)}",
+            "",
+        ]
+
+        # Group matches by section
+        section_hits = {}
+        for sec in elf.sections:
+            sec_start = sec.header.sh_offset if hasattr(sec.header, 'sh_offset') else 0
+            sec_end = sec_start + (sec.header.sh_size if hasattr(sec.header, 'sh_size') else 0)
+            if sec.name:
+                hits = [m for m in matches if sec_start <= m < sec_end]
+                if hits:
+                    section_hits[sec.name] = hits
+
+        if section_hits:
+            result.append("  By section:")
+            for sec_name, hits in section_hits.items():
+                sample = ", ".join(hex(m) for m in hits[:5])
+                more = f" ... (+{len(hits) - 5} more)" if len(hits) > 5 else ""
+                result.append(f"    {sec_name:20s}: {sample}{more}")
+
+        if matches:
+            result.append(f"\n  All matches ({min(20, len(matches))} shown):")
+            for m in matches[:20]:
+                context_start = max(0, m - 4)
+                context_end = min(len(data), m + len(pattern_bytes) + 4)
+                context = data[context_start:context_end]
+                prefix = " ".join(f"{b:02x}" for b in context[:m - context_start])
+                match_hex = " ".join(f"{b:02x}" for b in context[m - context_start:m - context_start + len(pattern_bytes)])
+                suffix = " ".join(f"{b:02x}" for b in context[m - context_start + len(pattern_bytes):])
+                result.append(f"    {hex(m)}: {prefix} [{match_hex}] {suffix}")
+
+        if len(matches) > 20:
+            result.append(f"    ... ({len(matches) - 20} more)")
+
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool(
+    name="pwntools_make_elf",
+    annotations={"title": "Create ELF from Assembly", "readOnlyHint": True, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True}
+)
+async def pwntools_make_elf(params: MakeElfParams) -> str:
+    '''Compile assembly code into an ELF binary using pwntools make_elf.'''
+    if not _pwntools_available():
+        return "Error: pwntools not installed. Run: pip install pwntools"
+    try:
+        pwn = _import_pwn()
+        pwn.context.clear()
+        pwn.context.update(arch=params.arch, os="linux", log_level="error")
+
+        output = params.output
+        if not output:
+            import tempfile
+            output = tempfile.mktemp(suffix=".elf")
+
+        pwn.make_elf(
+            pwn.asm(params.code),
+            extract=False,
+            path=output,
+        )
+
+        import os as os_mod
+        st = os_mod.stat(output)
+
+        elf = pwn.ELF(output, checksec=False) if os_mod.path.getsize(output) > 0 else None
+        result = [
+            f"=== ELF Created ===",
+            f"  Path: {output}",
+            f"  Size: {st.st_size} bytes",
+            "",
+            f"  Assembly source ({params.arch}):",
+        ]
+        for line in params.code.split(";"):
+            result.append(f"    {line.strip()}")
+        result.append("")
+
+        if elf:
+            result.append(f"  Entry: {hex(elf.entry)}")
+            result.append(f"  Arch: {elf.arch}")
+            result.append(f"  Sections: {len(list(elf.sections))}")
+            for sec in elf.sections[:10]:
+                if sec.name:
+                    size = sec.header.sh_size if hasattr(sec.header, 'sh_size') else 0
+                    result.append(f"    {sec.name:15s} size={hex(size or 0)}")
+
+        result.append("")
+        result.append(f"  Run: chmod +x {output} && ./{output}")
+        result.append(f"  Analyze: {output} (use pwntools_analyze_elf)")
+
+        return "\n".join(result)
+    except Exception as e:
+        return f"Error: {e}"

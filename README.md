@@ -13,7 +13,7 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **152 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **157 debugging tools** (83 Pydantic models, 123 backend methods, ~6100 LOC).
 
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (ROP, shellcode, cyclic, ELF), it becomes a complete AI-powered reverse engineering workstation.
 
@@ -30,7 +30,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 
 | Stat | Value |
 |------|-------|
-| Total tools | **152** (135 edb_ + 17 pwntools_) |
+| Total tools | **157** (135 edb_ + 22 pwntools_) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
 | Code size | ~6100 LOC · 83 Pydantic models · 123 backend methods |
 
@@ -59,7 +59,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 - [IDA Pro Integration](#ida-pro-integration)
 - [VS Code Extension](#vs-code-extension)
 - [Project Structure](#project-structure)
-- [Tool Reference](#tool-reference-152-tools)
+- [Tool Reference](#tool-reference-157-tools)
 - [License](#license)
 
 ## Quick Start
@@ -264,7 +264,7 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 
 ## pwntools Tools
 
-The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 17 MCP tools callable alongside the EDB debugger tools.
+The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 22 MCP tools callable alongside the EDB debugger tools.
 
 | Tool | Description |
 |------|-------------|
@@ -276,14 +276,19 @@ The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the
 | `pwntools_cyclic` | Generate De Bruijn cyclic pattern for offset discovery |
 | `pwntools_cyclic_find` | Find offset of a value in cyclic pattern |
 | `pwntools_disasm` | Disassemble raw bytes with pwntools (architecture-aware) |
+| `pwntools_elf_patch` | Patch bytes in ELF binary at file offset (creates .bak) |
 | `pwntools_elf_read` | Read bytes from ELF binary at section or address |
+| `pwntools_elf_search` | Search ELF binary for byte pattern grouped by section |
 | `pwntools_enc` | Encode shellcode (alphanumeric, null_free, xor) |
 | `pwntools_erope` | Search ROP gadgets grouped by type (syscall, stack_pivot, call, jump) |
 | `pwntools_find_rop` | Search for ROP gadgets by regex |
+| `pwntools_flat` | Pack values/addresses into flat payload bytes |
 | `pwntools_fmtstr_payload` | Generate format string write payload |
 | `pwntools_hexdump` | Hex dump with ASCII side (colored, offset-labeled) |
+| `pwntools_make_elf` | Compile assembly code into ELF binary |
 | `pwntools_pack` | Pack integer to bytes (little/big endian, 8/16/32/64-bit) |
 | `pwntools_shellcraft` | Generate shellcode for a given arch/OS (execve, bind/rev shell, etc.) |
+| `pwntools_sigreturn` | Generate SROP (Sigreturn-Oriented Programming) frame |
 | `pwntools_unpack` | Unpack bytes to integer |
 
 Usage: ask the AI "Find ROP gadgets with pop rdi" or "Generate x64 execve shellcode" — no separate setup needed.
@@ -375,7 +380,7 @@ Install: copy `x64dbg_mcp/` to x64dbg's `py-plugins/` directory. The "EDB Bridge
 
 ## IDA Pro Integration
 
-> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 152 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
+> **✅ Tested with IDA Pro 9.3** — IDAPython imports (ida_pro, idaapi, idc, idautils), all 13 actions register under Edit -> EDB Debugger, MCP subprocess bridge connects with 157 tools, step/run/breakpoint/patch actions work, headless mode works with `ida -c -A -S<script>` under xvfb.
 
 The `ida_mcp/` directory contains an IDAPython plugin that connects IDA Pro to the MCP server. Features:
 - **Start/Stop Bridge** — Launch and terminate the MCP subprocess
@@ -422,7 +427,7 @@ The extension registers commands under the `EDB:` prefix and shows a status bar 
 edb-debugger-mcp/
 ├── gdb_backend.py          # GDB MI backend (123 public methods, MI parser, session mgmt)
 ├── edb_debugger_mcp.py     # FastMCP server (135 edb_ tools, 83 Pydantic models)
-├── pwntools_mcp.py         # Pwntools integration (17 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, checksec, erope, enc, read, constgrep)
+├── pwntools_mcp.py         # Pwntools integration (22 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, checksec, erope, enc, read, constgrep, flat, sigreturn, patch, search, make_elf)
 ├── binaryninja_mcp/        # Binary Ninja plugin (register overlay, right-click BP/patch, step)
 ├── ghidra_mcp/             # Ghidra bridge (pyhidra-based, same MCP client)
 ├── ida_mcp/                # IDA Pro plugin (IDAPython bridge with breakpoint/patch/step)
@@ -470,10 +475,10 @@ cd examples/ret2win
 python solve.py
 ```
 
-## Tool Reference (152 tools)
+## Tool Reference (157 tools)
 
 <details>
-<summary>Click to expand the full tool reference (17 categories, 152 tools)</summary>
+<summary>Click to expand the full tool reference (17 categories, 157 tools)</summary>
 
 ### Program Control (12 tools)
 

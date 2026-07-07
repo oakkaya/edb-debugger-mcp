@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EDB Debugger MCP — Web UI</title>
+<title>EDB Debugger MCP</title>
 <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 <style>
 :root {
@@ -18,6 +18,10 @@
   --error: #f85149;
   --warning: #d29922;
   --code-bg: #1c2128;
+  --header-h: 44px;
+  --toolbar-h: 36px;
+  --sidebar-w: 220px;
+  --state-w: 280px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -28,50 +32,92 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  font-size: 13px;
 }
+
+/* Header */
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
+  padding: 0 16px;
+  height: var(--header-h);
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
-header h1 { font-size: 16px; font-weight: 600; }
+header h1 { font-size: 14px; font-weight: 600; }
 header h1 span { color: var(--accent); }
+header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; margin-left: 8px; }
 #status-badge {
-  font-size: 11px;
-  padding: 3px 10px;
+  font-size: 10px;
+  padding: 2px 10px;
   border-radius: 10px;
   background: var(--success);
   color: #000;
   font-weight: 600;
 }
 #status-badge.error { background: var(--error); }
+
+/* Quick Actions Toolbar */
+#toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: var(--toolbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+#toolbar::-webkit-scrollbar { height: 3px; }
+#toolbar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.qbtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.1s;
+}
+.qbtn:hover { border-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.08); }
+.qbtn .icon { font-size: 12px; }
+.qbtn:active { transform: scale(0.97); }
+.toolbar-divider { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+
+/* Main Layout */
 #main {
   display: flex;
   flex: 1;
   overflow: hidden;
 }
+
+/* Sidebar */
 #sidebar {
-  width: 240px;
-  min-width: 240px;
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
   background: var(--surface);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   flex-shrink: 0;
 }
-#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar { width: 5px; }
 #sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .category { border-bottom: 1px solid var(--border); }
 .category-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 10px;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -79,16 +125,13 @@ header h1 span { color: var(--accent); }
   user-select: none;
 }
 .category-header:hover { color: var(--text); }
-.category-header .arrow {
-  font-size: 10px;
-  transition: transform 0.15s;
-}
+.category-header .arrow { font-size: 9px; transition: transform 0.12s; }
 .category-header.collapsed .arrow { transform: rotate(-90deg); }
 .category-body { display: flex; flex-direction: column; }
 .category-body.collapsed { display: none; }
 .tool-btn {
-  padding: 5px 12px 5px 20px;
-  font-size: 12px;
+  padding: 4px 10px 4px 16px;
+  font-size: 11px;
   text-align: left;
   background: none;
   border: none;
@@ -96,63 +139,84 @@ header h1 span { color: var(--accent); }
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   border-left: 2px solid transparent;
-  transition: all 0.1s;
+  transition: all 0.08s;
 }
-.tool-btn:hover { background: rgba(88,166,255,0.08); border-left-color: var(--accent); color: var(--accent); }
-.tool-btn .has-params { color: var(--warning); font-size: 8px; margin-left: auto; }
+.tool-btn:hover { background: rgba(88,166,255,0.06); border-left-color: var(--accent); color: var(--accent); }
+.tool-btn.active { border-left-color: var(--accent); color: var(--accent); background: rgba(88,166,255,0.1); }
+.tool-btn .has-params { color: var(--warning); font-size: 7px; margin-left: auto; opacity: 0.6; }
+
+/* Center Panel */
+#center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Tool Panel (form) */
 #tool-panel {
-  width: 320px;
-  min-width: 320px;
+  padding: 12px 16px;
   background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 16px;
-  overflow-y: auto;
-  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
   display: none;
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
 }
 #tool-panel.show { display: block; }
-#tool-panel h2 { font-size: 14px; margin-bottom: 12px; }
-#tool-panel p.desc { font-size: 12px; color: var(--text-dim); margin-bottom: 16px; line-height: 1.4; }
-.form-group { margin-bottom: 12px; }
+#tool-panel h2 { font-size: 13px; margin-bottom: 4px; }
+#tool-panel p.desc { font-size: 11px; color: var(--text-dim); margin-bottom: 10px; line-height: 1.3; }
+.form-row {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+.form-group { margin-bottom: 6px; min-width: 140px; flex: 1; }
 .form-group label {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-dim);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .form-group label .required { color: var(--error); margin-left: 2px; }
 .form-group input, .form-group select {
   width: 100%;
-  padding: 6px 8px;
+  padding: 5px 7px;
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 3px;
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
   font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
 }
 .form-group input:focus, .form-group select:focus {
   outline: none;
   border-color: var(--accent);
 }
-.form-group .hint { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.form-group .hint { font-size: 9px; color: var(--text-dim); margin-top: 1px; }
 #execute-btn {
-  width: 100%;
-  padding: 8px;
+  padding: 5px 20px;
   background: var(--accent);
   color: #000;
   border: none;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.1s;
+  white-space: nowrap;
+  height: 28px;
+  align-self: end;
 }
 #execute-btn:hover { background: var(--accent-hover); }
-#execute-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#execute-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Result Area */
 #result {
   flex: 1;
   display: flex;
@@ -163,46 +227,152 @@ header h1 span { color: var(--accent); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 16px;
+  padding: 4px 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
+  flex-shrink: 0;
 }
 #result-toolbar .cmd-name { color: var(--accent); font-weight: 600; }
 #result-content {
   flex: 1;
-  padding: 16px;
+  padding: 12px;
   font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
 }
-#result-content::-webkit-scrollbar { width: 8px; }
-#result-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-#result-content .placeholder { color: var(--text-dim); font-family: inherit; }
+#result-content::-webkit-scrollbar { width: 6px; }
+#result-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#result-content .placeholder { color: var(--text-dim); font-family: inherit; font-size: 12px; }
 #result-content .error { color: var(--error); }
+#result-content .prompt { color: var(--success); }
 .loading-indicator {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: 12px;
+  height: 12px;
   border: 2px solid var(--border);
   border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.6s linear infinite;
-  margin-right: 8px;
+  animation: spin 0.5s linear infinite;
+  margin-right: 6px;
   vertical-align: middle;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* State Panel */
+#state-panel {
+  width: var(--state-w);
+  min-width: var(--state-w);
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+#state-panel.hidden { display: none; }
+#state-panel::-webkit-scrollbar { width: 5px; }
+#state-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+#state-panel .sp-header {
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sp-section { border-bottom: 1px solid var(--border); }
+.sp-section-title {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-dim);
+}
+.sp-section-title:hover { color: var(--text); }
+.sp-section-body {
+  padding: 4px 10px 8px;
+  font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+  font-size: 10px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-x: hidden;
+}
+.sp-section-body.collapsed { display: none; }
+.reg-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 0;
+}
+.reg-row .reg-name { color: var(--text-dim); }
+.reg-row .reg-val { color: var(--accent); font-size: 10px; }
+.reg-row.highlight { background: rgba(88,166,255,0.06); border-radius: 2px; }
+
+/* State Refresh Button */
+#state-refresh {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-dim);
+  cursor: pointer;
+  margin: 4px 8px;
+}
+#state-refresh:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Toggle state button */
+#toggle-state {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+#toggle-state:hover { color: var(--text); background: var(--code-bg); }
+
+@media (max-width: 900px) {
+  #state-panel { display: none; }
+  #sidebar { width: 160px; min-width: 160px; }
+}
 </style>
 </head>
 <body>
 <header>
-  <h1><span>EDB</span> Debugger MCP — Web UI</h1>
-  <span id="status-badge">Connected</span>
+  <h1><span>EDB</span> Debugger MCP <small>Web UI</small></h1>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span id="state-indicator" style="font-size:10px;color:var(--text-dim)">Idle</span>
+    <span id="status-badge">Connected</span>
+  </div>
 </header>
+
+<div id="toolbar">
+  {% for action in quick_actions %}
+  <button class="qbtn" onclick="quickAction('{{ action.tool }}')" title="{{ action.tool }}">
+    <span class="icon">{% if action.icon == 'cpu' %}▣{% elif action.icon == 'stack' %}⬓{% elif action.icon == 'code' %}⟨⟩{% elif action.icon == 'map' %}☰{% elif action.icon == 'list' %}≡{% elif action.icon == 'stop' %}◼{% elif action.icon == 'info' %}ⓘ{% elif action.icon == 'refresh' %}↻{% endif %}</span>
+    {{ action.name }}
+  </button>
+  {% endfor %}
+  <div class="toolbar-divider"></div>
+  <button class="qbtn" onclick="refreshState()">⟳ Refresh</button>
+  <button class="qbtn" id="toggle-state-btn" onclick="toggleState()">⊞ State</button>
+</div>
+
 <div id="main">
   <nav id="sidebar">
     {% for category, tools in categorized_tools.items() %}
@@ -230,31 +400,62 @@ header h1 span { color: var(--accent); }
     {% endfor %}
   </nav>
 
-  <div id="tool-panel">
-    <h2 id="tool-name"></h2>
-    <p class="desc" id="tool-desc"></p>
-    <form id="tool-form" onsubmit="return executeTool(event)">
-      <div id="tool-inputs"></div>
-      <button type="submit" id="execute-btn">Execute</button>
-    </form>
+  <div id="center">
+    <div id="tool-panel">
+      <div style="display:flex;justify-content:space-between;align-items:start">
+        <div>
+          <h2 id="tool-name"></h2>
+          <p class="desc" id="tool-desc"></p>
+        </div>
+      </div>
+      <form id="tool-form" onsubmit="return executeTool(event)">
+        <div class="form-row" id="tool-inputs"></div>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <button type="submit" id="execute-btn">Execute</button>
+          <button type="button" id="clear-btn" onclick="clearResult()" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:4px;color:var(--text-dim);font-size:11px;cursor:pointer">Clear</button>
+        </div>
+      </form>
+    </div>
+
+    <section id="result">
+      <div id="result-toolbar">
+        <span>Result: <span class="cmd-name" id="last-cmd">—</span></span>
+        <span id="result-status"></span>
+      </div>
+      <div id="result-content">
+        <span class="placeholder">Select a tool from the sidebar or click a quick action above.</span>
+      </div>
+    </section>
   </div>
 
-  <section id="result">
-    <div id="result-toolbar">
-      <span>Command: <span class="cmd-name" id="last-cmd">—</span></span>
-      <span id="result-status"></span>
+  <div id="state-panel">
+    <div class="sp-header">Debugger State</div>
+    <div style="padding:0"><button id="state-refresh" onclick="refreshState()">⟳ Refresh</button></div>
+    <div id="state-content">
+      <div class="sp-section">
+        <div class="sp-section-title" onclick="toggleSection(this)">Registers <span>▼</span></div>
+        <div class="sp-section-body" id="state-regs"><span style="color:var(--text-dim)">Load a program first.</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-title" onclick="toggleSection(this)">Stack (top 8) <span>▼</span></div>
+        <div class="sp-section-body collapsed" id="state-stack"><span style="color:var(--text-dim)">—</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-title" onclick="toggleSection(this)">Current Insn <span>▼</span></div>
+        <div class="sp-section-body" id="state-disasm"><span style="color:var(--text-dim)">—</span></div>
+      </div>
+      <div class="sp-section">
+        <div class="sp-section-title" onclick="toggleSection(this)">Backtrace <span>▼</span></div>
+        <div class="sp-section-body collapsed" id="state-bt"><span style="color:var(--text-dim)">—</span></div>
+      </div>
     </div>
-    <div id="result-content"
-         hx-target="this"
-         hx-swap="beforeend"
-         _="on htmx:afterSwap scrollToBottom()">
-      <span class="placeholder">Select a tool from the sidebar to begin.</span>
-    </div>
-  </section>
+  </div>
 </div>
 
 <script>
 let toolCache = {};
+let stateVisible = true;
+let lastResult = '';
 
 async function loadTools() {
   try {
@@ -264,7 +465,7 @@ async function loadTools() {
       toolCache[t.name] = t;
     }
   } catch (e) {
-    document.getElementById('status-badge').textContent = 'Error loading tools';
+    document.getElementById('status-badge').textContent = 'Error';
     document.getElementById('status-badge').className = 'error';
   }
 }
@@ -278,95 +479,65 @@ function toggleCategory(el) {
 function selectTool(btn) {
   const name = btn.dataset.toolName;
   const hasInputs = btn.dataset.hasInputs === 'true';
-
-  document.querySelectorAll('.tool-btn').forEach(b => b.style.borderLeftColor = 'transparent');
-  btn.style.borderLeftColor = 'var(--accent)';
-
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
   const panel = document.getElementById('tool-panel');
   const tool = toolCache[name];
-
   document.getElementById('tool-name').textContent = name;
   document.getElementById('tool-desc').textContent = (tool && tool.description) || '';
   document.getElementById('last-cmd').textContent = name;
-
   const inputsDiv = document.getElementById('tool-inputs');
   inputsDiv.innerHTML = '';
-
   if (!hasInputs || !tool || !tool.input_fields || tool.input_fields.length === 0) {
     panel.classList.remove('show');
     executeDirect(name);
     return;
   }
-
   panel.classList.add('show');
-
   for (const field of tool.input_fields) {
     const grp = document.createElement('div');
     grp.className = 'form-group';
-
     const label = document.createElement('label');
     label.textContent = field.name;
     if (field.required) {
-      const star = document.createElement('span');
-      star.className = 'required';
-      star.textContent = ' *';
+      const star = document.createElement('span'); star.className = 'required'; star.textContent = ' *';
       label.appendChild(star);
     }
     grp.appendChild(label);
-
     let input;
     if (field.enum) {
       input = document.createElement('select');
       for (const opt of field.enum) {
-        const o = document.createElement('option');
-        o.value = opt;
-        o.textContent = opt;
+        const o = document.createElement('option'); o.value = opt; o.textContent = opt;
         if (opt === field.default) o.selected = true;
         input.appendChild(o);
       }
     } else {
       input = document.createElement('input');
       input.type = field.type === 'integer' || field.type === 'number' ? 'number' : 'text';
-      input.placeholder = field.type === 'integer' ? 'e.g. 10' : field.description;
-      if (field.default && field.default !== '') {
-        input.placeholder += ` (default: ${field.default})`;
-      }
-      if (field.required) {
-        input.required = true;
-      }
+      input.placeholder = field.description;
+      if (field.default) input.placeholder += ` (default: ${field.default})`;
+      if (field.required) input.required = true;
     }
-
     input.name = field.name;
-    input.id = 'field-' + field.name;
     input.dataset.fieldType = field.type;
-
-    if (field.pattern) {
-      input.pattern = field.pattern;
-    }
-
+    if (field.pattern) input.pattern = field.pattern;
     grp.appendChild(input);
-
     if (field.description) {
-      const hint = document.createElement('div');
-      hint.className = 'hint';
-      hint.textContent = field.description;
+      const hint = document.createElement('div'); hint.className = 'hint'; hint.textContent = field.description;
       grp.appendChild(hint);
     }
-
     inputsDiv.appendChild(grp);
   }
-
   document.getElementById('execute-btn').textContent = 'Execute ' + name;
 }
 
 function executeDirect(name) {
   const resultDiv = document.getElementById('result-content');
-  resultDiv.innerHTML = '<span class="loading-indicator"></span> Calling ' + name + '...';
-
+  resultDiv.innerHTML = '<span class="loading-indicator"></span> Calling...';
+  document.getElementById('last-cmd').textContent = name;
   fetch('/api/call/' + encodeURIComponent(name), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ args: {} })
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args: {} })
   })
   .then(r => r.json())
   .then(data => {
@@ -374,13 +545,16 @@ function executeDirect(name) {
     if (data.isError) {
       resultDiv.innerHTML = '<span class="error">' + escapeHtml(text) + '</span>';
     } else {
-      resultDiv.innerHTML = escapeHtml(text);
+      resultDiv.innerHTML = '<span class="prompt">$ ' + escapeHtml(name) + '</span>\n\n' + escapeHtml(text);
     }
-    document.getElementById('last-cmd').textContent = name;
-    resultDiv.scrollTop = resultDiv.scrollHeight;
+    lastResult = resultDiv.innerHTML;
+    resultDiv.scrollTop = 0;
+    document.getElementById('result-status').textContent = '';
+    if (isStateChanging(name)) refreshState();
   })
   .catch(err => {
     resultDiv.innerHTML = '<span class="error">Error: ' + escapeHtml(String(err)) + '</span>';
+    lastResult = resultDiv.innerHTML;
   });
 }
 
@@ -389,25 +563,18 @@ function executeTool(event) {
   const name = document.getElementById('tool-name').textContent;
   const inputs = document.querySelectorAll('#tool-inputs input, #tool-inputs select');
   const args = {};
-
   for (const inp of inputs) {
     if (inp.value !== '') {
-      const fieldType = inp.dataset.fieldType;
-      if (fieldType === 'integer' || fieldType === 'number') {
-        args[inp.name] = parseInt(inp.value, 10);
-      } else {
-        args[inp.name] = inp.value;
-      }
+      const ft = inp.dataset.fieldType;
+      args[inp.name] = (ft === 'integer' || ft === 'number') ? parseInt(inp.value, 10) : inp.value;
     }
   }
-
   const resultDiv = document.getElementById('result-content');
-  resultDiv.innerHTML = '<span class="loading-indicator"></span> Calling ' + name + '...';
-
+  resultDiv.innerHTML = '<span class="loading-indicator"></span> Calling...';
+  document.getElementById('last-cmd').textContent = name;
+  document.getElementById('tool-panel').classList.remove('show');
   fetch('/api/call/' + encodeURIComponent(name), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ args: args })
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ args: args })
   })
   .then(r => r.json())
   .then(data => {
@@ -415,16 +582,110 @@ function executeTool(event) {
     if (data.isError) {
       resultDiv.innerHTML = '<span class="error">' + escapeHtml(text) + '</span>';
     } else {
-      resultDiv.innerHTML = '<span class="placeholder">$ ' + escapeHtml(name) + ' ' + JSON.stringify(args) + '</span>\n\n' + escapeHtml(text);
+      resultDiv.innerHTML = '<span class="prompt">$ ' + escapeHtml(name) + ' ' + escapeHtml(JSON.stringify(args)) + '</span>\n\n' + escapeHtml(text);
     }
-    document.getElementById('last-cmd').textContent = name;
-    resultDiv.scrollTop = resultDiv.scrollHeight;
+    lastResult = resultDiv.innerHTML;
+    resultDiv.scrollTop = 0;
+    document.getElementById('result-status').textContent = '';
+    if (isStateChanging(name)) refreshState();
   })
   .catch(err => {
     resultDiv.innerHTML = '<span class="error">Error: ' + escapeHtml(String(err)) + '</span>';
+    lastResult = resultDiv.innerHTML;
   });
-
   return false;
+}
+
+function quickAction(name) {
+  const btn = document.querySelector(`.tool-btn[data-tool-name="${name}"]`);
+  if (btn) {
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+  document.getElementById('tool-panel').classList.remove('show');
+  executeDirect(name);
+}
+
+function isStateChanging(name) {
+  const changing = ['edb_run','edb_continue','edb_step_into','edb_step_over','edb_pause',
+    'edb_step_out','edb_restart','edb_step_instruction','edb_reverse_step',
+    'edb_reverse_continue','edb_continue_to','edb_set_register','edb_write_memory',
+    'edb_load_program','edb_kill_process','edb_jump_to_address'];
+  return changing.includes(name);
+}
+
+async function refreshState() {
+  const btn = document.getElementById('state-refresh');
+  btn.textContent = '⟳ Loading...';
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/state');
+    const data = await resp.json();
+    if (data.error) {
+      document.getElementById('state-regs').innerHTML = '<span style="color:var(--text-dim)">No program loaded.</span>';
+      document.getElementById('state-stack').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-disasm').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-bt').innerHTML = '<span style="color:var(--text-dim)">—</span>';
+      document.getElementById('state-indicator').textContent = 'Idle';
+      btn.textContent = '⟳ Refresh';
+      btn.disabled = false;
+      return;
+    }
+    // Parse registers
+    let regsHtml = '';
+    try {
+      const regData = JSON.parse(data.registers.result);
+      const mainRegs = ['rax','rbx','rcx','rdx','rsi','rdi','rsp','rbp','rip','r8','r9','r10','r11','r12','r13','r14','r15'];
+      if (regData.registers) {
+        for (const r of mainRegs) {
+          if (regData.registers[r] !== undefined) {
+            const val = typeof regData.registers[r] === 'number' ? '0x' + regData.registers[r].toString(16) : regData.registers[r];
+            regsHtml += `<div class="reg-row"><span class="reg-name">${r}</span><span class="reg-val">${val}</span></div>`;
+          }
+        }
+      } else {
+        // Flat register map
+        for (const r of mainRegs) {
+          if (regData[r] !== undefined) {
+            const val = typeof regData[r] === 'number' ? '0x' + regData[r].toString(16) : regData[r];
+            regsHtml += `<div class="reg-row"><span class="reg-name">${r}</span><span class="reg-val">${val}</span></div>`;
+          }
+        }
+      }
+      if (!regsHtml) regsHtml = '<span style="color:var(--text-dim)">Parsing error</span>';
+    } catch (e) {
+      regsHtml = escapeHtml(data.registers.result || '(no data)');
+    }
+    document.getElementById('state-regs').innerHTML = regsHtml;
+    document.getElementById('state-stack').innerHTML = escapeHtml(data.stack.result || '(no data)').slice(0, 500);
+    document.getElementById('state-disasm').innerHTML = escapeHtml(data.disasm.result || '(no data)');
+    document.getElementById('state-bt').innerHTML = escapeHtml(data.backtrace.result || '(no data)').slice(0, 500);
+    document.getElementById('state-indicator').textContent = 'Running';
+  } catch (e) {
+    document.getElementById('state-regs').innerHTML = '<span class="error">Error: ' + escapeHtml(String(e)) + '</span>';
+  }
+  btn.textContent = '⟳ Refresh';
+  btn.disabled = false;
+}
+
+function toggleState() {
+  const panel = document.getElementById('state-panel');
+  stateVisible = !stateVisible;
+  panel.classList.toggle('hidden');
+  document.getElementById('toggle-state-btn').innerHTML = stateVisible ? '⊞ State' : '⊟ State';
+}
+
+function toggleSection(el) {
+  const body = el.nextElementSibling;
+  body.classList.toggle('collapsed');
+  const arrow = el.querySelector('span');
+  if (arrow) arrow.textContent = body.classList.contains('collapsed') ? '▶' : '▼';
+}
+
+function clearResult() {
+  document.getElementById('result-content').innerHTML = '<span class="placeholder">Cleared.</span>';
+  document.getElementById('last-cmd').textContent = '—';
+  lastResult = '';
 }
 
 function escapeHtml(str) {
@@ -432,6 +693,19 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const form = document.getElementById('tool-form');
+    if (form && document.getElementById('tool-panel').classList.contains('show')) {
+      form.requestSubmit();
+    }
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('tool-panel').classList.remove('show');
+  }
+});
 
 document.addEventListener('DOMContentLoaded', loadTools);
 </script>

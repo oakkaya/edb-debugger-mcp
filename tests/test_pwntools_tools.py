@@ -34,6 +34,16 @@ from pwntools_mcp import (
     DisasmParams,
     AsmParams,
     BuildRopChainParams,
+    FlatParams,
+    SigreturnFrameParams,
+    ElfPatchParams,
+    ElfSearchParams,
+    MakeElfParams,
+    ChecksecParams,
+    ERopSearchParams,
+    ShellcodeEncodeParams,
+    ElfReadParams,
+    ConstGrepParams,
     pwntools_analyze_elf,
     pwntools_find_rop,
     pwntools_shellcraft,
@@ -46,6 +56,16 @@ from pwntools_mcp import (
     pwntools_disasm_bytes,
     pwntools_asm_instructions,
     pwntools_build_rop_chain,
+    pwntools_checksec,
+    pwntools_erope,
+    pwntools_enc,
+    pwntools_elf_read,
+    pwntools_constgrep,
+    pwntools_flat,
+    pwntools_sigreturn,
+    pwntools_elf_patch,
+    pwntools_elf_search,
+    pwntools_make_elf,
 )
 
 
@@ -335,6 +355,118 @@ class TestPwntoolsTools:
         d = json.loads(r)
         assert d["arch"] == "amd64"
         assert d["length"] > 0
+
+    # -- Checksec --
+
+    def test_checksec(self, test_binary):
+        r = _await(pwntools_checksec(ChecksecParams(path=test_binary)))
+        assert "Security properties" in r or "Error" in r
+
+    # -- EROPE --
+
+    def test_erope_all(self, test_binary):
+        r = _await(pwntools_erope(ERopSearchParams(path=test_binary, gadget_type="all")))
+        assert "Extended ROP gadgets" in r or "No gadgets" in r
+
+    # -- Enc --
+
+    def test_enc_alphanumeric(self):
+        r = _await(pwntools_enc(ShellcodeEncodeParams(
+            hex_bytes="90", arch="amd64", encoder="alphanumeric"
+        )))
+        assert "Shellcode Encoding" in r or "not available" in r or "Error" in r
+
+    def test_enc_null_free(self):
+        r = _await(pwntools_enc(ShellcodeEncodeParams(
+            hex_bytes="31c0", arch="amd64", encoder="null_free"
+        )))
+        assert "Shellcode Encoding" in r or "not available" in r
+
+    # -- ELF Read --
+
+    def test_elf_read_section(self, test_binary):
+        r = _await(pwntools_elf_read(ElfReadParams(
+            path=test_binary, section=".text", size=32
+        )))
+        assert "ELF Read" in r or "Error" in r
+
+    def test_elf_read_addr(self, test_binary):
+        r = _await(pwntools_elf_read(ElfReadParams(
+            path=test_binary, offset=0x400000, size=16
+        )))
+        assert "ELF Read" in r or "Error" in r
+
+    # -- constgrep --
+
+    def test_constgrep(self):
+        r = _await(pwntools_constgrep(ConstGrepParams(search="SYS_read", arch="amd64")))
+        assert "Constants" in r or "No constants" in r or "not available" in r
+
+    # -- Flat --
+
+    def test_flat_simple(self):
+        r = _await(pwntools_flat(FlatParams(
+            values='[0xdeadbeef, 0x41414141]', arch="amd64"
+        )))
+        assert "Flat" in r
+        assert "bytes" in r
+
+    def test_flat_i386(self):
+        r = _await(pwntools_flat(FlatParams(
+            values='[0xdeadbeef, 0x41414141]', arch="i386", pack_size=4
+        )))
+        assert "Flat" in r
+
+    # -- Sigreturn --
+
+    def test_sigreturn_amd64(self):
+        r = _await(pwntools_sigreturn(SigreturnFrameParams(
+            arch="amd64", rax="0x3b", rdi="0xdeadbeef", rip="0x41414141"
+        )))
+        assert "SROP Frame" in r
+        assert "rax =" in r
+        assert "rdi =" in r
+        assert "rip =" in r
+
+    def test_sigreturn_i386(self):
+        r = _await(pwntools_sigreturn(SigreturnFrameParams(
+            arch="i386", rax="0x1", rip="0x42424242"
+        )))
+        assert "SROP Frame" in r or "Error" in r
+
+    # -- ELF Patch --
+
+    def test_elf_patch(self, test_binary):
+        import shutil
+        tmp = test_binary + "_patch_test"
+        shutil.copy(test_binary, tmp)
+        try:
+            r = _await(pwntools_elf_patch(ElfPatchParams(
+                path=tmp, offset=0x100, bytes="90 90 90 90"
+            )))
+            assert "ELF Patched" in r
+            assert "Backup" in r
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            if os.path.exists(tmp + ".bak"):
+                os.unlink(tmp + ".bak")
+
+    # -- ELF Search --
+
+    def test_elf_search(self, test_binary):
+        r = _await(pwntools_elf_search(ElfSearchParams(
+            path=test_binary, pattern="48 31 c0"
+        )))
+        assert "Search in" in r
+
+    # -- Make ELF --
+
+    def test_make_elf(self):
+        r = _await(pwntools_make_elf(MakeElfParams(
+            code="mov rax, 60; xor rdi, rdi; syscall", arch="amd64"
+        )))
+        assert "ELF Created" in r or "Error" in r
 
     # -- Build ROP chain --
 

@@ -34,6 +34,8 @@ CATEGORIES = OrderedDict([
             "edb_set_watchpoint", "edb_remove_breakpoint", "edb_enable_breakpoint",
             "edb_disable_breakpoint", "edb_list_breakpoints", "edb_set_trace_point",
             "edb_set_catchpoint", "edb_breakpoint_export", "edb_breakpoint_import",
+            "edb_set_breakpoint_condition", "edb_set_breakpoint_ignore_count",
+            "edb_breakpoint_commands",
         }
     }),
     ("Run/Step", {
@@ -42,6 +44,7 @@ CATEGORIES = OrderedDict([
             "edb_step_into", "edb_step_over", "edb_step_out",
             "edb_continue_to", "edb_step_instruction",
             "edb_reverse_step", "edb_reverse_continue",
+            "edb_jump_to_address",
         }
     }),
     ("Registers/Memory", {
@@ -80,12 +83,26 @@ CATEGORIES = OrderedDict([
     }),
 ])
 
+QUICK_ACTIONS = [
+    {"name": "Registers", "tool": "edb_get_registers", "icon": "cpu"},
+    {"name": "Stack", "tool": "edb_get_stack", "icon": "stack"},
+    {"name": "Disasm PC", "tool": "edb_get_current_instruction", "icon": "code"},
+    {"name": "Memory Map", "tool": "edb_get_memory_map", "icon": "map"},
+    {"name": "Backtrace", "tool": "edb_get_backtrace", "icon": "list"},
+    {"name": "Breakpoints", "tool": "edb_list_breakpoints", "icon": "stop"},
+    {"name": "Status", "tool": "edb_get_status", "icon": "info"},
+    {"name": "Restart", "tool": "edb_restart", "icon": "refresh"},
+]
+
 
 @asynccontextmanager
 async def lifespan(app):
     loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, client.start)
-    print(f"  [web_ui] {result}")
+    try:
+        result = await loop.run_in_executor(None, client.start)
+        print(f"  [web_ui] {result}")
+    except Exception as e:
+        print(f"  [web_ui] Failed to start: {e}")
     yield
     client.stop()
 
@@ -140,8 +157,14 @@ async def index(request: Request):
         {
             "request": request,
             "categorized_tools": categorized,
+            "quick_actions": QUICK_ACTIONS,
         },
     )
+
+
+@app.get("/api/quick")
+async def quick_actions():
+    return {"actions": QUICK_ACTIONS}
 
 
 @app.get("/api/tools")
@@ -163,10 +186,7 @@ async def get_tool(tool_name: str):
     tools = client.list_tools()
     for t in tools:
         if t.get("name") == tool_name:
-            return {
-                **t,
-                "input_fields": get_input_fields(t),
-            }
+            return {**t, "input_fields": get_input_fields(t)}
     return JSONResponse({"error": f"Tool '{tool_name}' not found"}, status_code=404)
 
 
@@ -180,6 +200,27 @@ async def call_tool(tool_name: str, request: Request):
         return result
     except Exception as e:
         return {"result": f"Error: {e}", "isError": True}
+
+
+@app.get("/api/state")
+async def get_state():
+    try:
+        loop = asyncio.get_event_loop()
+        regs = await loop.run_in_executor(None, client.call_tool, "edb_get_registers", {})
+        stack = await loop.run_in_executor(None, client.call_tool, "edb_get_stack", {})
+        disasm = await loop.run_in_executor(None, client.call_tool, "edb_get_current_instruction", {})
+        bt = await loop.run_in_executor(None, client.call_tool, "edb_get_backtrace", {})
+        status = await loop.run_in_executor(None, client.call_tool, "edb_get_status", {})
+        return {
+            "registers": regs,
+            "stack": stack,
+            "disasm": disasm,
+            "backtrace": bt,
+            "status": status,
+            "error": False,
+        }
+    except Exception as e:
+        return {"error": True, "message": str(e)}
 
 
 def main():
