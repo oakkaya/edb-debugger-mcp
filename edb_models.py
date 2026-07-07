@@ -495,3 +495,12 @@ class ExploitGenerateInput(BaseModel):
     cmd: str = Field(default="/bin/sh", description="Command to execute via shellcode/ROP")
     save_path: str = Field(default="", description="Optional file path to save generated payload")
     arch: str = Field(default="amd64", description="Target architecture: amd64, i386, or aarch64")
+
+class AddressRefInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    address: str = Field(..., description="Address or symbol to find references for", min_length=1)
+
+
+class ProcessStringsInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    min_length: int = Field(default=4, description="Minimum string length to find", ge=2, le=256)

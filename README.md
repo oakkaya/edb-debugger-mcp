@@ -13,7 +13,7 @@
 
 [EDB (Evan's Debugger)](https://github.com/eteran/edb-debugger) is a feature-rich, open-source GUI debugger for Linux (x86/x86-64), known for its intuitive interface, powerful plugin system (22 plugins), and extensive debugging capabilities — breakpoints, memory analysis, ROP tool, heap analyzer, and more. However, EDB has always been limited to manual GUI interaction — until now.
 
-**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **202 debugging tools** (97 Pydantic models, 177 backend methods, ~8300 LOC).
+**EDB Debugger MCP** bridges EDB's debugging engine with modern AI via the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). Every EDB feature is exposed as a tool callable by an AI assistant — Claude Desktop, Cursor, or any MCP host — effectively giving AI a debugger's intuition. The server exposes **207 debugging tools** (100 Pydantic models, 182 backend methods, ~8500 LOC).
 
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (50 tools: ROP, shellcode, cyclic, ELF, pack, enhex, align, bitops, tubes), it becomes a complete AI-powered reverse engineering workstation.
 
@@ -30,9 +30,9 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 
 | Stat | Value |
 |------|-------|
-| Total tools | **197** (147 edb_ + 50 pwntools_) |
+| Total tools | **207** (157 edb_ + 50 pwntools_) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
-| Code size | ~8000 LOC · 93 Pydantic models · 123 backend methods |
+| Code size | ~8500 LOC · 96 Pydantic models · 128 backend methods |
 
 [EDB](https://github.com/eteran/edb-debugger) · [GDB](https://www.sourceware.org/gdb/) · [MCP](https://modelcontextprotocol.io) · [FastMCP](https://github.com/jlowin/fastmcp) · [pwntools](https://github.com/Gallopsled/pwntools) · [Binary Ninja](https://binary.ninja/)
 
@@ -522,10 +522,10 @@ cd examples/ret2win
 python solve.py
 ```
 
-## Tool Reference (197 tools)
+## Tool Reference (207 tools)
 
 <details>
-<summary>Click to expand the full tool reference (16 categories, 197 tools)</summary>
+<summary>Click to expand the full tool reference (16 categories, 207 tools)</summary>
 
 ### Program Control (12 tools)
 
@@ -746,6 +746,11 @@ python solve.py
 | `edb_remote_arch` | Detect the architecture of a connected remote GDB target. |
 | `edb_remote_info` | Show detailed information about the remote debugging target. |
 | `edb_exploit_generate` | Generate a BOF exploit payload: offset + ROP chain + shellcode. |
+| `edb_get_function_xrefs` | Show cross-references to a given function or address. |
+| `edb_goto_function_start` | Find the function start address containing a given address. |
+| `edb_enum_registers` | List available CPU registers by category (GPR, SIMD, FPU). |
+| `edb_process_strings` | Scan process memory for readable ASCII strings. |
+| `edb_list_breakpoint_types` | List supported breakpoint types (software, hardware, watchpoint). |
 
 ### File Utils (2 tools)
 
@@ -809,7 +814,7 @@ python solve.py
 | `pwntools_unhex` | Decode hexadecimal string back to raw bytes. |
 | `pwntools_unpack` | Unpack bytes into an integer (e.g., u64, u32, u16). |
 
-<!-- Total tools: 202 listed: 202 -->
+<!-- Total tools: 207 listed: 207 -->
 </details>
 
 ## License

@@ -3348,3 +3348,73 @@ async def edb_exploit_generate(params: ExploitGenerateInput) -> str:
     except Exception as e:
         return f"Error: Unexpected error: {e}"
 
+
+@mcp.tool(
+    name="edb_get_function_xrefs",
+    annotations={"title": "Get Function Cross-References", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_get_function_xrefs(params: AddressRefInput) -> str:
+    '''Show cross-references to a given address or function.'''
+    try:
+        return await backend.get_function_xrefs(params.address)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_goto_function_start",
+    annotations={"title": "Go to Function Start", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_goto_function_start(params: AddressRefInput) -> str:
+    '''Find the function start address containing a given address.'''
+    try:
+        return await backend.goto_function_start(params.address)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_enum_registers",
+    annotations={"title": "Enumerate CPU Registers", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_enum_registers() -> str:
+    '''List available CPU registers by category (GPR, SIMD, FPU, flag).'''
+    try:
+        return await backend.enum_registers()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_process_strings",
+    annotations={"title": "Scan Process for Strings", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_process_strings(params: ProcessStringsInput) -> str:
+    '''Scan process memory for readable ASCII strings.'''
+    try:
+        return await backend.process_strings(params.min_length)
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+
+
+@mcp.tool(
+    name="edb_list_breakpoint_types",
+    annotations={"title": "List Breakpoint Types", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+)
+async def edb_list_breakpoint_types() -> str:
+    '''List supported breakpoint types (software, hardware, watchpoint, catchpoint).'''
+    try:
+        return await backend.list_breakpoint_types()
+    except GDBBackendError as e:
+        return f"Error: {e}"
+    except Exception as e:
+        return f"Error: Unexpected error: {e}"
+

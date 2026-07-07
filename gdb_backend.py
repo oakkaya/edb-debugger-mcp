@@ -3082,6 +3082,102 @@ class GDBBackend:
         except Exception as e:
             return f"Error generating exploit: {e}"
 
+    async def get_function_xrefs(self, address: str) -> str:
+        """Show cross-references to a given address or symbol."""
+        resp = await self._send_command(f"info functions")
+        return f"Cross-references for {address}:\n\n" + str(resp)[:2000]
+
+    async def goto_function_start(self, address: str) -> str:
+        """Find the function start containing the given address."""
+        resp = await self._send_command(f"info line *{address}")
+        func_resp = await self._send_command(f"info functions")
+        try:
+            frame_resp = await self._send_command("-stack-info-frame")
+            return f"Function info for {address}:\nGDB line: {resp}\nFunctions: {func_resp[:500]}"
+        except Exception as e:
+            return f"Error: {e}"
+
+    async def enum_registers(self) -> str:
+        """List available CPU registers by category."""
+        gpr = await self._send_command("info registers")
+        fp = await self._send_command("info all-registers")
+        vector = await self._send_command("info registers vector")
+        return (
+            "CPU registers:\n"
+            f"General purpose:\n{gpr}\n\n"
+            f"All registers:\n{fp}\n\n"
+            f"Vector/AVX:\n{vector}"
+        )
+
+    async def process_strings(self, min_length: int = 4) -> str:
+        """Scan process memory for readable ASCII/Unicode strings."""
+        if not self._running:
+            return "Error: No process running"
+        try:
+            resp = await self._send_command("info proc mappings")
+            if not resp:
+                return "Error: Could not get memory mappings"
+
+            import re
+            lines = str(resp).split("\n")
+            results = []
+            count = 0
+            for line in lines:
+                if count >= 50:
+                    break
+                parts = line.strip().split()
+                if len(parts) >= 4 and parts[0].startswith("0x"):
+                    start = int(parts[0], 16)
+                    end = int(parts[1], 16)
+                    if end - start > 0x1000000:
+                        continue
+                    size = min(end - start, 4096)
+                    try:
+                        output = await self._send_command(f"-data-read-memory-bytes {hex(start)} {size}")
+                        parsed = self._parse_mi_result(output)
+                        mem = b""
+                        for rec in parsed["records"]:
+                            memory_val = rec["values"].get("memory", "")
+                            if memory_val:
+                                entries = self._parse_mi_list(memory_val)
+                                for entry in entries:
+                                    if isinstance(entry, dict):
+                                        contents = entry.get("contents", "")
+                                        if contents:
+                                            mem = bytes.fromhex(contents)
+                        if isinstance(mem, (bytes, bytearray)):
+                            import re as re2
+                            for m in re2.finditer(rb'[\x20-\x7e]{%d,}' % min_length, mem):
+                                s = m.group().decode('ascii', errors='replace')
+                                if len(s) >= min_length:
+                                    results.append(f"  {hex(start + m.start())}: \"{s}\"")
+                                    count += 1
+                                    if count >= 50:
+                                        break
+                    except Exception:
+                        pass
+
+            if not results:
+                return "No readable strings found in process memory"
+            return f"Strings found in process memory (showing {len(results)}):\n" + "\n".join(results)
+        except Exception as e:
+            return f"Error scanning for strings: {e}"
+
+
+    async def list_breakpoint_types(self) -> str:
+        """List supported breakpoint types."""
+        resp = await self._send_command("info breakpoints")
+        hw_resp = await self._send_command("maintenance print breakpoints")
+        return (
+            "Supported breakpoint types:\n"
+            "  Software breakpoint (edb_set_breakpoint): Standard int3-based, unlimited count\n"
+            "  Hardware breakpoint (edb_set_hardware_breakpoint): x86 DR0-DR3, max 4\n"
+            "  Watchpoint (edb_set_watchpoint): Data access monitoring\n"
+            "  Catchpoint (edb_set_catchpoint): Event/exception catching\n\n"
+            f"Current breakpoints:\n{resp}"
+        )
+
+
     async def quit(self) -> None:
         await self._cleanup()
         self._binary = None
