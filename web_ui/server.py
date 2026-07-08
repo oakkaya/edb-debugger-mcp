@@ -273,7 +273,6 @@ async def memory_hex(address: str = Query("0x400000", description="Address to re
             if len(parts) >= 2 and parts[0].startswith(("0x", "0X")):
                 addr = parts[0]
                 hex_bytes = " ".join(parts[1:])
-                # Build ASCII side
                 ascii_str = ""
                 for b in parts[1:]:
                     try:

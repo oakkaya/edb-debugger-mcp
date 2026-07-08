@@ -146,6 +146,5 @@ class TestModelsCoverage:
 
     def test_all_tools_use_input_models(self):
         """Every tool should have an associated input model (or no params)."""
-        # This test just verifies that tool annotations exist
         for tool in mcp._tool_manager._tools.values():
             assert tool.name.startswith(("edb_", "pwntools_")), f"Tool {tool.name} doesn't start with edb_ or pwntools_"

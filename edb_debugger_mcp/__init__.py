@@ -3,7 +3,6 @@
 from edb_debugger_mcp._mcp import mcp, backend, GDBBackendError as GDBBackendError
 from edb_models import *  # noqa: F403 - re-export models for backwards compat
 
-# Import tools module to register all tools on the mcp instance
 import edb_debugger_mcp.tools  # noqa: F401
 
 try:

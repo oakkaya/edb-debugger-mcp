@@ -111,7 +111,6 @@ def run():
 
     print(f"  MCP server PID: {server.pid}")
 
-    # Initialize MCP
     send_msg(server.stdin, json.dumps({
         "jsonrpc": "2.0", "id": 1, "method": "initialize",
         "params": {
