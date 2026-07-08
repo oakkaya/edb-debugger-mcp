@@ -265,6 +265,9 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 
 ## pwntools Tools
 
+<details>
+<summary>Click to expand the pwntools tool overview (50 tools)</summary>
+
 The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 50 MCP tools callable alongside the EDB debugger tools.
 
 | Tool | Description |
@@ -298,8 +301,12 @@ The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the
 | `pwntools_unpack` | Unpack bytes to integer |
 
 Usage: ask the AI "Find ROP gadgets with pop rdi" or "Generate x64 execve shellcode" — no separate setup needed.
+</details>
 
 ## EDB Plugin Mapping
+
+<details>
+<summary>Click to expand the EDB plugin coverage table (22 plugins)</summary>
 
 | Plugin | MCP Coverage |
 |--------|-------------|
@@ -325,6 +332,7 @@ Usage: ask the AI "Find ROP gadgets with pop rdi" or "Generate x64 execve shellc
 | **Bookmarks** | edb_add_bookmark, edb_list_bookmarks, edb_remove_bookmark |
 | **CheckVersion** | Automatically handled |
 | **DebuggerErrorConsole** | edb_set_debug_output |
+</details>
 
 ## Binary Ninja Integration
 
@@ -373,6 +381,9 @@ Features:
 
 ### REST API
 
+<details>
+<summary>Click to expand the Web UI REST API reference (18 endpoints)</summary>
+
 The Web UI exposes a REST API used by the frontend. All endpoints return JSON unless noted.
 
 | Endpoint | Method | Description |
@@ -395,6 +406,7 @@ The Web UI exposes a REST API used by the frontend. All endpoints return JSON un
 | `/api/sessions/load/{name}` | POST | Load a saved session |
 | `/api/sessions/{name}` | DELETE | Delete a saved session |
 | `/api/tabs/{name}` | GET | HTML fragment for a tab (history, sessions, state) |
+</details>
 
 ## x64dbg Integration
 
