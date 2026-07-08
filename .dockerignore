@@ -8,7 +8,7 @@ docs/
 tests/
 ghidra_mcp/
 ida_mcp/
-web_ui/
+
 x64dbg_mcp/
 vscode-edb-mcp/
 dist/
