@@ -1,6 +1,6 @@
 [project]
 name = "edb-debugger-mcp"
-version = "1.2.3"
+version = "1.2.4"
 description = "EDB Debugger MCP — 207 tools (157 edb_ + 50 pwntools). AI-assisted reverse engineering with GDB MI, Web UI, IDA Pro, Binary Ninja, and Ghidra integration. Linux x86/x86-64."
 readme = "README.md"
 license = { text = "MIT" }
