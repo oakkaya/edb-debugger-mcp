@@ -1,7 +1,6 @@
 # EDB Debugger MCP
 
-[![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/oakkaya/edb-debugger-mcp/actions)
-[![Lint](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg?branch=main&job=lint)](https://github.com/oakkaya/edb-debugger-mcp/actions)
+[![CI](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/oakkaya/edb-debugger-mcp/actions)
 [![PyPI](https://img.shields.io/pypi/v/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
