@@ -589,45 +589,13 @@ header h1 small { font-size: 10px; color: var(--text-dim); font-weight: 400; mar
   <button class="tab-btn" data-tab="sessions" hx-get="/api/tabs/sessions" hx-target="#tab-sessions" hx-trigger="click once" onclick="switchTab('sessions')">Sessions</button>
 </nav>
 
-<div id="tab-container">
+    <div id="tab-container">
   <div id="tab-console" class="tab-pane active">
-    <div id="toolbar">
-      {% for action in quick_actions %}
-      <button class="qbtn" onclick="quickAction('{{ action.tool }}')" title="{{ action.tool }}">
-        <span class="icon">{% if action.icon == 'cpu' %}▣{% elif action.icon == 'stack' %}⬓{% elif action.icon == 'code' %}⟨⟩{% elif action.icon == 'map' %}☰{% elif action.icon == 'list' %}≡{% elif action.icon == 'stop' %}◼{% elif action.icon == 'info' %}ⓘ{% elif action.icon == 'refresh' %}↻{% endif %}</span>
-        {{ action.name }}
-      </button>
-      {% endfor %}
-      <div class="toolbar-divider"></div>
-      <button class="qbtn" onclick="refreshState()">⟳ Refresh</button>
-      <button class="qbtn" id="toggle-state-btn" onclick="toggleState()">⊞ State</button>
+    <div id="toolbar" id="toolbar-container">
     </div>
 
     <div id="main">
       <nav id="sidebar">
-        {% for category, tools in categorized_tools.items() %}
-        <div class="category">
-          <div class="category-header" onclick="toggleCategory(this)">
-            <span>{{ category }}</span>
-            <span class="arrow">&#9660;</span>
-          </div>
-          <div class="category-body" data-tools='{{ tools | map(attribute="name") | list | tojson }}'>
-            {% for tool in tools %}
-            {% set ns = namespace(has_inputs=false) %}
-            {% if tool.inputSchema and tool.inputSchema.properties %}
-              {% set ns.has_inputs = true %}
-            {% endif %}
-            <button class="tool-btn"
-                    data-tool-name="{{ tool.name }}"
-                    data-has-inputs="{{ 'true' if ns.has_inputs else 'false' }}"
-                    onclick="selectTool(this)">
-              {{ tool.name | replace("edb_", "") | replace("pwntools_", "") }}
-              {% if ns.has_inputs %}<span class="has-params">&#9881;</span>{% endif %}
-            </button>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
       </nav>
 
       <div id="center">
@@ -737,16 +705,90 @@ let liveTimer = null;
 let prevRegs = {};
 let memAutoTimer = null;
 
+const QUICK_ICONS = {
+  'cpu': '▣', 'stack': '⬓', 'code': '⟨⟩', 'map': '☰',
+  'list': '≡', 'stop': '◼', 'info': 'ⓘ', 'refresh': '↻'
+};
+
 async function loadTools() {
   try {
-    const resp = await fetch('/api/tools');
-    const data = await resp.json();
-    for (const t of data.tools) {
+    const [toolsResp, quickResp] = await Promise.all([
+      fetch('/api/tools'),
+      fetch('/api/quick')
+    ]);
+    const toolsData = await toolsResp.json();
+    const quickData = await quickResp.json();
+
+    for (const t of toolsData.tools) {
       toolCache[t.name] = t;
     }
+
+    buildToolbar(quickData.actions);
+    buildSidebar(toolsData.tools, toolsData.categories);
   } catch (e) {
     document.getElementById('status-badge').textContent = 'Error';
     document.getElementById('status-badge').className = 'error';
+  }
+}
+
+function buildToolbar(actions) {
+  const tb = document.getElementById('toolbar');
+  if (!tb) return;
+  tb.innerHTML = '';
+  for (const a of actions) {
+    const btn = document.createElement('button');
+    btn.className = 'qbtn';
+    btn.onclick = () => quickAction(a.tool);
+    btn.title = a.tool;
+    btn.innerHTML = `<span class="icon">${QUICK_ICONS[a.icon] || '?'}</span> ${a.name}`;
+    tb.appendChild(btn);
+  }
+  const div = document.createElement('div');
+  div.className = 'toolbar-divider';
+  tb.appendChild(div);
+  const refreshBtn = document.createElement('button');
+  refreshBtn.className = 'qbtn';
+  refreshBtn.onclick = refreshState;
+  refreshBtn.textContent = '⟳ Refresh';
+  tb.appendChild(refreshBtn);
+  const toggleBtn = document.createElement('button');
+  toggleBtn.className = 'qbtn';
+  toggleBtn.id = 'toggle-state-btn';
+  toggleBtn.onclick = toggleState;
+  toggleBtn.textContent = '⊞ State';
+  tb.appendChild(toggleBtn);
+}
+
+function buildSidebar(tools, categories) {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.innerHTML = '';
+  const catMap = {};
+  for (const t of tools) {
+    const cat = t.category || 'Other';
+    if (!catMap[cat]) catMap[cat] = [];
+    catMap[cat].push(t);
+  }
+  for (const cat of categories) {
+    const items = catMap[cat] || [];
+    const div = document.createElement('div');
+    div.className = 'category';
+    div.innerHTML = `<div class="category-header" onclick="toggleCategory(this)"><span>${cat}</span><span class="arrow">&#9660;</span></div>`;
+    const body = document.createElement('div');
+    body.className = 'category-body';
+    for (const t of items) {
+      const btn = document.createElement('button');
+      btn.className = 'tool-btn';
+      btn.dataset.toolName = t.name;
+      const hasInputs = t.input_fields && t.input_fields.length > 0;
+      btn.dataset.hasInputs = hasInputs ? 'true' : 'false';
+      btn.onclick = () => selectTool(btn);
+      const shortName = t.name.replace(/^edb_/, '').replace(/^pwntools_/, '');
+      btn.innerHTML = shortName + (hasInputs ? '<span class="has-params">&#9881;</span>' : '');
+      body.appendChild(btn);
+    }
+    div.appendChild(body);
+    sidebar.appendChild(div);
   }
 }
 

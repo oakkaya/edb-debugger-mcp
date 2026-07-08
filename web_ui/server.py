@@ -6,18 +6,23 @@ import json
 import datetime
 import html
 from pathlib import Path
-from contextlib import asynccontextmanager
 from collections import OrderedDict
 
 # Add project root to path for MCPClient import
 _project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
-from binaryninja_mcp.mcp_client import MCPClient
+
+# MCPClient is shared across plugins; import directly to avoid binaryninja SDK dependency
+_mcp_client_path = os.path.join(os.path.dirname(__file__), "..", "binaryninja_mcp", "mcp_client.py")
+import importlib.util as _importlib_util
+_mcp_client_spec = _importlib_util.spec_from_file_location("mcp_client", _mcp_client_path)
+_mcp_client_mod = _importlib_util.module_from_spec(_mcp_client_spec)
+_mcp_client_spec.loader.exec_module(_mcp_client_mod)
+MCPClient = _mcp_client_mod.MCPClient
 
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 import uvicorn
 
 client = MCPClient()
@@ -110,20 +115,20 @@ QUICK_ACTIONS = [
 ]
 
 
-@asynccontextmanager
-async def lifespan(app):
+app = FastAPI(title="EDB Debugger MCP — Web UI")
+
+@app.on_event("startup")
+async def on_startup():
     loop = asyncio.get_event_loop()
     try:
         result = await loop.run_in_executor(None, client.start)
         print(f"  [web_ui] {result}")
     except Exception as e:
         print(f"  [web_ui] Failed to start: {e}")
-    yield
+
+@app.on_event("shutdown")
+def on_shutdown():
     client.stop()
-
-
-app = FastAPI(title="EDB Debugger MCP — Web UI", lifespan=lifespan)
-templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 def categorize_tools(tools: list) -> OrderedDict:
@@ -165,16 +170,10 @@ def get_input_fields(tool_def: dict) -> list:
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    tools = client.list_tools()
-    categorized = categorize_tools(tools)
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "categorized_tools": categorized,
-            "quick_actions": QUICK_ACTIONS,
-        },
-    )
+    html_path = TEMPLATES_DIR / "index.html"
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<html><body><h1>EDB Debugger MCP</h1><p>Template not found.</p></body></html>")
 
 
 @app.get("/api/quick")
@@ -184,7 +183,10 @@ async def quick_actions():
 
 @app.get("/api/tools")
 async def list_tools():
-    tools = client.list_tools()
+    try:
+        tools = client.list_tools()
+    except Exception:
+        tools = []
     categorized = categorize_tools(tools)
     flat = []
     for cat, tool_list in categorized.items():
@@ -198,7 +200,10 @@ async def list_tools():
 
 @app.get("/api/tools/{tool_name}")
 async def get_tool(tool_name: str):
-    tools = client.list_tools()
+    try:
+        tools = client.list_tools()
+    except Exception:
+        tools = []
     for t in tools:
         if t.get("name") == tool_name:
             return {**t, "input_fields": get_input_fields(t)}

@@ -1,13 +1,13 @@
 # EDB Debugger MCP
 
 [![Tests](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg)](https://github.com/oakkaya/edb-debugger-mcp/actions)
-[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)]()
+[![Lint](https://github.com/oakkaya/edb-debugger-mcp/actions/workflows/test.yml/badge.svg?branch=main&job=lint)](https://github.com/oakkaya/edb-debugger-mcp/actions)
 [![PyPI](https://img.shields.io/pypi/v/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![Python](https://img.shields.io/pypi/pyversions/edb-debugger-mcp)](https://pypi.org/project/edb-debugger-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
-[![Docker](https://img.shields.io/badge/docker-ready-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
 
 ## About
 
@@ -31,6 +31,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 | Stat | Value |
 |------|-------|
 | Total tools | **207** (157 edb_ + 50 pwntools_) |
+| Test count | **372** (pytest, 4 Python versions) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
 | Code size | ~9000 LOC · 100 Pydantic models · 182 backend methods |
 
@@ -222,7 +223,7 @@ docker pull ghcr.io/oakkaya/edb-debugger-mcp:latest
 docker run -i ghcr.io/oakkaya/edb-debugger-mcp
 
 # Run with a specific version tag
-docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.0.10
+docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.2.2
 
 # Run interactively with a shell for debugging
 docker run --rm -it \
@@ -264,7 +265,7 @@ The server uses GDB's MI (Machine Interface) protocol (`--interpreter=mi2`) to c
 
 ## pwntools Tools
 
-The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 27 MCP tools callable alongside the EDB debugger tools.
+The server integrates [pwntools](https://github.com/Gallopsled/pwntools) — the CTF/exploit development framework — as 50 MCP tools callable alongside the EDB debugger tools.
 
 | Tool | Description |
 |------|-------------|
@@ -355,7 +356,7 @@ Install: in Ghidra with pyhidra, run `ghidra_mcp/ghidra_bridge.py` via the Pytho
 
 > **⚠ Experimental**
 
-The `web_ui/` directory provides a browser-based debugger frontend using FastAPI + htmx. No JS framework required.
+The `web_ui/` directory provides a browser-based debugger frontend (FastAPI + vanilla JS). No JS framework required.
 
 ```
 cd web_ui
@@ -472,7 +473,7 @@ edb-debugger-mcp/
 ├── pwntools_mcp.py            # Pwntools integration (50 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, pack, tubes, enhex, elf_diff, bits, context)
 ├── web_ui/                    # Web debugger frontend (FastAPI + htmx, browser-based)
 │   ├── server.py              # FastAPI app, tool categories, multi-page routing
-│   └── templates/             # Jinja2 HTML templates
+│   └── templates/             # Static HTML + JavaScript frontend
 ├── binaryninja_mcp/           # Binary Ninja plugin (register overlay, right-click BP/patch, step)
 ├── ghidra_mcp/                # Ghidra bridge (pyhidra-based, same MCP client)
 ├── ida_mcp/                   # IDA Pro plugin (IDAPython bridge with breakpoint/patch/step)
@@ -491,7 +492,7 @@ edb-debugger-mcp/
 │   ├── integer-overflow/      #   Signed check bypass → OOB write
 │   ├── nx-bypass/             #   ROP mprotect + shellcode
 │   └── canary-leak/           #   Format string leak + BOF with canary
-├── tests/                     # 346 tests (pytest + pytest-asyncio)
+├── tests/                     # 372 tests (pytest + pytest-asyncio)
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # This file
 ├── LICENSE                    # MIT License
