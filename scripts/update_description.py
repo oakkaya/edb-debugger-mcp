@@ -1,7 +1,10 @@
 """Update pyproject.toml description with live tool/test counts."""
-import re, sys
+import re
+import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from edb_debugger_mcp import mcp
 
 tools = list(mcp._tool_manager._tools.keys())
