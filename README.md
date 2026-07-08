@@ -18,12 +18,12 @@
 Behind the scenes, it translates AI requests into [GDB MI commands](https://sourceware.org/gdb/current/onlinedocs/gdb/GDB_002fMI.html) via a high-performance async backend, then formats results back as structured data. Combined with [pwntools](https://github.com/Gallopsled/pwntools) integration (50 tools: ROP, shellcode, cyclic, ELF, pack, enhex, align, bitops, tubes), it becomes a complete AI-powered reverse engineering workstation.
 
 <p align="center">
-  <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%"><br>
+  <img alt="Workflow Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-workflow.gif" width="90%" loading="lazy"><br>
   <em>Complete RE workflow: load binary → disassemble → ROP search → set breakpoint → run → read registers → dump stack → backtrace → generate shellcode.</em>
 </p>
 
 <p align="center">
-  <img alt="Split-Screen Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif" width="90%"><br>
+  <img alt="Split-Screen Demo" src="https://raw.githubusercontent.com/oakkaya/edb-debugger-mcp/main/docs/edb-splitscreen.gif" width="90%" loading="lazy"><br>
   <em>Tool call arguments and their structured results displayed side by side for clarity.</em>
 </p>
 
