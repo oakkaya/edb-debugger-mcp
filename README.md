@@ -8,6 +8,7 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
+[![Changelog](https://img.shields.io/badge/changelog-v1.2.2-blue)](CHANGELOG.md)
 
 ## About
 
@@ -493,6 +494,7 @@ edb-debugger-mcp/
 │   ├── nx-bypass/             #   ROP mprotect + shellcode
 │   └── canary-leak/           #   Format string leak + BOF with canary
 ├── tests/                     # 372 tests (pytest + pytest-asyncio)
+├── CHANGELOG.md               # Version history
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # This file
 ├── LICENSE                    # MIT License
