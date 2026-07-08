@@ -372,6 +372,31 @@ Features:
 - **Dark theme** — Clean, readable interface
 - **Live results** — Output streams into the result panel with auto-scroll
 
+### REST API
+
+The Web UI exposes a REST API used by the frontend. All endpoints return JSON unless noted.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | Serve the main HTML page (static) |
+| `/api/quick` | GET | Quick action buttons metadata (name, tool, icon) |
+| `/api/tools` | GET | All tools with category and input fields |
+| `/api/tools/{name}` | GET | Single tool definition by name |
+| `/api/call/{name}` | POST | Execute a tool with JSON `{"args": {...}}` |
+| `/api/state` | GET | Debugger state snapshot (registers, stack, disasm, backtrace, status) |
+| `/api/state/v2` | GET | Enhanced state with register diff highlighting |
+| `/api/register/set` | POST | Set a register value `{"name": "eax", "value": "0x..."}` |
+| `/api/memory/hex` | GET | Read memory as parsed hex dump `?address=0x400000&size=256` |
+| `/api/disasm` | GET | Disassemble at address `?address=entry&count=32` |
+| `/api/disasm/functions` | GET | List all functions in the binary |
+| `/api/history` | GET | Tool call history (in-memory, ordered) |
+| `/api/history/clear` | POST | Clear tool call history |
+| `/api/sessions` | GET | List saved debugger sessions |
+| `/api/sessions/save` | POST | Save session `{"name": "..."}` |
+| `/api/sessions/load/{name}` | POST | Load a saved session |
+| `/api/sessions/{name}` | DELETE | Delete a saved session |
+| `/api/tabs/{name}` | GET | HTML fragment for a tab (history, sessions, state) |
+
 ## x64dbg Integration
 
 > **⚠ Experimental / untested** — Windows-only. Requires [x64dbg](https://x64dbg.com/) with [x64dbgpy](https://github.com/x64dbg/x64dbgpy). No test environment available.
