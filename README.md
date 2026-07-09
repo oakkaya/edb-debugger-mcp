@@ -31,7 +31,7 @@ Behind the scenes, it translates AI requests into [GDB MI commands](https://sour
 | Stat | Value |
 |------|-------|
 | Total tools | **207** (157 edb_ + 50 pwntools_) |
-| Test count | **372** (pytest, 4 Python versions) |
+| Test count | **452** (pytest, 4 Python versions) |
 | EDB feature coverage | 22/22 plugins · 29/29 actions · 13/13 dialogs · 6/6 views |
 | Code size | ~9000 LOC · 100 Pydantic models · 182 backend methods |
 
@@ -529,7 +529,7 @@ edb-debugger-mcp/
 │   ├── integer-overflow/      #   Signed check bypass → OOB write
 │   ├── nx-bypass/             #   ROP mprotect + shellcode
 │   └── canary-leak/           #   Format string leak + BOF with canary
-├── tests/                     # 372 tests (pytest + pytest-asyncio)
+├── tests/                     # 452 tests (pytest + pytest-asyncio)
 ├── CHANGELOG.md               # Version history
 ├── requirements.txt           # Python dependencies
 ├── README.md                  # This file
