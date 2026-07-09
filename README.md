@@ -7,7 +7,7 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
-[![Changelog](https://img.shields.io/badge/changelog-v1.2.2-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/changelog-v1.2.5-blue)](CHANGELOG.md)
 
 ## About
 
@@ -223,7 +223,7 @@ docker pull ghcr.io/oakkaya/edb-debugger-mcp:latest
 docker run -i ghcr.io/oakkaya/edb-debugger-mcp
 
 # Run with a specific version tag
-docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.2.2
+docker run -i ghcr.io/oakkaya/edb-debugger-mcp:v1.2.5
 
 # Run interactively with a shell for debugging
 docker run --rm -it \
