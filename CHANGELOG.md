@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.2.5 (2026-07-09)
+
+- **Tests**: 396 → 452 (+56 edge-case tests), flakiness fixed
+- **Docs**: README test count synced (372→452), PyPI description updated
+- **Quality**: Removed 5 AI-boilerplate comments, codebase cleaned
+- **CI**: All 452 tests green, ruff zero errors
+
+## v1.2.4 (2026-07-09)
+
+- **Chore**: Bump version, sync README description via CI
+- **Docs**: Demo GIFs `loading="lazy"`, collapsible sections
+
+## v1.2.3 (2026-07-08)
+
+- **Chore**: Auto-update PyPI description from live tool counts
+- **Fix**: PyPI description now matches GitHub README
+- **CI**: Lint + publish pipeline green
+
 ## v1.2.2 (2026-07-08)
 
 - **Fix**: Jinja2 compatibility — starlette 1.3.1 + system jinja2 3.1.6 threw `unhashable type: dict`
