@@ -1,0 +1,28 @@
+EDB Debugger MCP is now on PyPI & Docker 🚀
+
+Linux reverse engineering has always lacked an "OllyDbg moment" — a debugger that's both powerful and scriptable. EDB (Evan's Debugger) came closest with its 22 plugins and intuitive GUI, but it was trapped in manual interaction.
+
+Until now.
+
+EDB Debugger MCP bridges EDB's debugging engine with AI via the Model Context Protocol (MCP). Every feature — breakpoints, memory analysis, ROP search, heap inspection, register manipulation — is exposed as a tool callable by Claude, Cursor, or any MCP host.
+
+207 tools. 452 tests. One pip install away.
+
+pip install edb-debugger-mcp
+
+Then ask your AI: "Load /bin/ls, find ROP gadgets with pop rdi, and generate execve shellcode."
+
+What makes this different:
+• GDB MI backend — production-grade, not a toy
+• pwntools integration for ROP/shellcode/ELF analysis
+• Web UI for browser-based debugging
+• IDA Pro, Binary Ninja, Ghidra plugins
+• Docker image for instant setup
+
+This is what AI-native debugging looks like.
+
+→ GitHub: https://github.com/oakkaya/edb-debugger-mcp
+→ PyPI: pip install edb-debugger-mcp
+→ Docker: ghcr.io/oakkaya/edb-debugger-mcp
+
+#ReverseEngineering #CTF #AI #Debugging #Linux #MCP #Python #Infosec

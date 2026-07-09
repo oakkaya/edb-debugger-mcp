@@ -7,7 +7,7 @@
 [![GDB](https://img.shields.io/badge/GDB-14+-orange)](https://www.sourceware.org/gdb/)
 [![MCP](https://img.shields.io/badge/MCP-1.0-green)](https://modelcontextprotocol.io)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/oakkaya/edb-debugger-mcp/pkgs/container/edb-debugger-mcp)
-[![Changelog](https://img.shields.io/badge/changelog-v1.2.5-blue)](CHANGELOG.md)
+[![Changelog](https://img.shields.io/badge/changelog-v1.2.6-blue)](CHANGELOG.md)
 
 ## About
 
