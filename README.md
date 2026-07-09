@@ -501,10 +501,10 @@ The extension registers commands under the `EDB:` prefix and shows a status bar 
 
 ```
 edb-debugger-mcp/
-├── edb_debugger_mcp/         # Package: FastMCP server (147 edb_ tools)
+├── edb_debugger_mcp/         # Package: FastMCP server (157 edb_ tools)
 │   ├── __init__.py            # Entry point + main()
 │   ├── _mcp.py                # FastMCP instance + GDB backend init
-│   └── tools.py               # All 147 @mcp.tool function definitions
+│   └── tools.py               # All 157 @mcp.tool function definitions
 ├── gdb_backend.py             # GDB MI backend (172 public methods, MI parser, session mgmt)
 ├── edb_models.py              # 93+ Pydantic models for tool parameters
 ├── pwntools_mcp.py            # Pwntools integration (50 pwntools_ tools: ROP, shellcode, ELF, asm, fmtstr, pack, tubes, enhex, elf_diff, bits, context)
