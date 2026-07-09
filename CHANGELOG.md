@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.2.7 (2026-07-09)
+
+- **Fix**: README Docker example `v1.2.5` → `latest`; PyPI rebuild
+
 ## v1.2.6 (2026-07-09)
 
 - **Fix**: PyPI package rebuilt — README badge `changelog-v1.2.2` → `v1.2.6`, version bump
