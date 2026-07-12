@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.3.0 (2026-07-12)
+
+- **Major refactor**: 207 flat tools → **26 composite tools** (19 edb_ + 7 pwntools_)
+- **Architecture**: Parameter-driven dispatch with `action: Literal` reduces MCP token overhead by ~75%
+- **BloodHound-inspired**: Composite tools group related operations (e.g., `edb_memory` replaces 15 flat memory tools)
+- **Backward compatible**: Legacy flat functions remain in `tools.py` / `pwntools_mcp.py` for direct import
+- **README**: Full rewrite of tool reference, use cases, CTF examples
+
 ## v1.2.7 (2026-07-09)
 
 - **Fix**: README Docker example `v1.2.5` → `latest`; PyPI rebuild

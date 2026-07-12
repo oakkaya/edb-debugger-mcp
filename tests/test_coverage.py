@@ -257,9 +257,9 @@ class TestInitMain:
     def test_tools_registered(self):
         import edb_debugger_mcp
         tools = edb_debugger_mcp.mcp._tool_manager._tools
-        assert len(tools) >= 200
+        assert len(tools) >= 25
         edb_tools = [t for t in tools if t.startswith("edb_")]
-        assert len(edb_tools) >= 150
+        assert len(edb_tools) >= 18
 
 
 class TestPwntoolsEdgeCases:

@@ -1,5 +1,10 @@
-from edb_debugger_mcp._mcp import mcp, backend, GDBBackendError
+from edb_debugger_mcp._mcp import backend, GDBBackendError
 from edb_models import *
+# Dummy MCP — composite_tools.py handles registration
+class _NoopMCP:
+    def tool(self, *a, **kw):
+        return lambda f: f
+mcp = _NoopMCP()
 
 @mcp.tool(
     name="edb_load_program",

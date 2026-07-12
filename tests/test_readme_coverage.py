@@ -21,8 +21,8 @@ class TestToolCoverage:
         cls.pwn_tools = {t for t in cls.tool_names if t.startswith("pwntools_")}
 
     def test_tools_are_defined(self):
-        """There should be at least 130 edb_ tools and pwntools tools."""
-        assert len(self.tool_names) >= 140, f"Expected >=140 tools, got {len(self.tool_names)}"
+        """There should be at least 25 composite tools."""
+        assert len(self.tool_names) >= 25, f"Expected >=25 tools, got {len(self.tool_names)}"
 
     def test_all_tools_have_readme_entry(self):
         """Every edb_ tool name should appear in README.md."""
@@ -36,8 +36,6 @@ class TestToolCoverage:
                 missing.append(tool_name)
 
         assert not missing, f"edb_ tools missing from README: {missing}"
-        if self.pwn_tools:
-            print(f"(skipped {len(self.pwn_tools)} pwntools_ tools - documented in pwntools_mcp.py)")
 
     def test_readme_has_correct_tool_count(self):
         """README should mention the correct number of edb_ tools."""
@@ -46,13 +44,13 @@ class TestToolCoverage:
             readme = f.read()
 
         expected_count = len(self.tool_names)
-        pattern = rf"\*\*{expected_count} debugging tools"
+        pattern = rf"\*\*{expected_count}.*?debugging tools"
         assert re.search(pattern, readme), (
             f"README does not mention '{expected_count} debugging tools'"
         )
 
     def test_all_tools_have_pipe_entry(self):
-        """Every edb_ tool should have a | edb_* | Description | entry in README."""
+        """Every edb_ tool should have a | `edb_*` | Description | entry in README."""
         readme_path = os.path.join(os.path.dirname(__file__), "..", "README.md")
         with open(readme_path) as f:
             readme = f.read()

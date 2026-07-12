@@ -5,7 +5,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
 
-from edb_debugger_mcp import mcp
+# Dummy MCP — composite_tools.py handles registration
+class _NoopMCP:
+    def tool(self, *a, **kw):
+        return lambda f: f
+mcp = _NoopMCP()
 
 
 _PWNTOOLS_READY = None
