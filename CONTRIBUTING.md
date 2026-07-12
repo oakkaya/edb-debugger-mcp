@@ -74,11 +74,11 @@ This runs `pytest` against all unit tests. For additional test targets:
 
 New tools must follow the established three-layer pattern:
 
-1. **Model** -- define the input/output Pydantic model in `edb_models.py`
-2. **Tool** -- register the tool function in `edb_debugger_mcp.py` using the model
+1. **Model** -- define the input/output Pydantic model in `edb_debugger_mcp/edb_models.py`
+2. **Tool** -- register the tool function in `edb_debugger_mcp/composite_tools.py` using the model
 3. **Test** -- add a test in `tests/` following the existing test patterns
 
-For tools that interact with GDB, add the corresponding method to `gdb_backend.py` first.
+For tools that interact with GDB, add the corresponding method to `edb_debugger_mcp/gdb_backend.py` first.
 
 Refer to existing tools as reference -- they follow a consistent structure.
 
