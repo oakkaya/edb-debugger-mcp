@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from gdb_backend import GDBBackend, GDBBackendError
+from edb_debugger_mcp.gdb_backend import GDBBackend, GDBBackendError
 
 
 class TestBackendEdgeCases:
@@ -266,17 +266,17 @@ class TestPwntoolsEdgeCases:
     """Test pwntools MCP edge cases."""
 
     def test_pwntools_available_function(self):
-        from pwntools_mcp import _pwntools_available
+        from edb_debugger_mcp.composite_tools import _pwntools_available
         assert isinstance(_pwntools_available(), bool)
 
     def test_pwntools_cached(self):
-        from pwntools_mcp import _pwntools_available, _PWNTOOLS_READY
+        from edb_debugger_mcp.composite_tools import _pwntools_available, _PWNTOOLS_READY
         _pwntools_available()
         assert _PWNTOOLS_READY is not None
         assert isinstance(_PWNTOOLS_READY, bool)
 
     def test_pwntools_not_available_fallback(self):
-        import pwntools_mcp
+        import edb_debugger_mcp.composite_tools as pwntools_mcp
         orig = pwntools_mcp._PWNTOOLS_READY
         pwntools_mcp._PWNTOOLS_READY = False
         try:
@@ -286,7 +286,7 @@ class TestPwntoolsEdgeCases:
             pwntools_mcp._PWNTOOLS_READY = orig
 
     def test_pwntools_not_avail_returns_false(self):
-        import pwntools_mcp
+        import edb_debugger_mcp.composite_tools as pwntools_mcp
         orig = pwntools_mcp._PWNTOOLS_READY
         pwntools_mcp._PWNTOOLS_READY = False
         try:

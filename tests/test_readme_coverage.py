@@ -79,7 +79,7 @@ class TestBackendCoverage:
 
     def test_backend_has_all_tool_methods(self):
         """Every MCP tool should call a backend method."""
-        import gdb_backend
+        from edb_debugger_mcp import gdb_backend
         backend = gdb_backend.GDBBackend
 
         methods = [m for m in dir(backend) if not m.startswith("_")]

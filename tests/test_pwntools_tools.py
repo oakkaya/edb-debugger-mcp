@@ -12,94 +12,19 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from gdb_backend import GDBBackend
+from edb_debugger_mcp.gdb_backend import GDBBackend
 
 pytest.importorskip("pwn")
 
-# Force import of pwntools_mcp once (it registers tools on the global mcp instance)
-# We import edb_debugger_mcp first to ensure the mcp instance exists.
-import edb_debugger_mcp  # noqa: F401
-
-from pwntools_mcp import (
+import edb_debugger_mcp as mcp_module
+from edb_debugger_mcp.edb_models import (
     ElfPath,
     RopSearchParams,
-    ShellcodeParams,
     PackParams,
     UnpackParams,
-    CyclicParams,
     CyclicFindParams,
-    HexDumpParams,
     FmtStrPayloadParams,
-    DisasmParams,
-    AsmParams,
     BuildRopChainParams,
-    FlatParams,
-    SigreturnFrameParams,
-    ElfPatchParams,
-    ElfSearchParams,
-    MakeElfParams,
-    ChecksecParams,
-    ERopSearchParams,
-    ShellcodeEncodeParams,
-    ElfReadParams,
-    ConstGrepParams,
-    ElfSectionsParams,
-    ElfSymbolsParams,
-    ElfStringsParams,
-    ElfDepsParams,
-    EntropyParams,
-    EncodeHexParams,
-    DecodeHexParams,
-    AlignParams,
-    BitOpParams,
-    ElfRelocsParams,
-    ElfDiffParams,
-    BitsParams,
-    ContextParams,
-    TubeProcessParams,
-    pwntools_analyze_elf,
-    pwntools_find_rop,
-    pwntools_shellcraft,
-    pwntools_pack,
-    pwntools_unpack,
-    pwntools_cyclic,
-    pwntools_cyclic_find,
-    pwntools_hexdump_data,
-    pwntools_fmtstr_payload,
-    pwntools_disasm_bytes,
-    pwntools_asm_instructions,
-    pwntools_build_rop_chain,
-    pwntools_checksec,
-    pwntools_erope,
-    pwntools_enc,
-    pwntools_elf_read,
-    pwntools_constgrep,
-    pwntools_flat,
-    pwntools_sigreturn,
-    pwntools_elf_patch,
-    pwntools_elf_search,
-    pwntools_make_elf,
-    pwntools_elf_sections,
-    pwntools_elf_symbols,
-    pwntools_elf_strings,
-    pwntools_elf_deps,
-    pwntools_entropy,
-    pwntools_elf_got,
-    pwntools_elf_plt,
-    pwntools_elf_segments,
-    pwntools_elf_relocs,
-    pwntools_elf_notes,
-    pwntools_enhex,
-    pwntools_unhex,
-    pwntools_align,
-    pwntools_rol,
-    pwntools_ror,
-    pwntools_elf_diff,
-    pwntools_bits,
-    pwntools_context,
-    pwntools_log_level,
-    pwntools_process,
-    pwntools_tube_list,
 )
 
 
@@ -140,6 +65,12 @@ def _await(coro):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
+
+
+def _text(r):
+    if isinstance(r, tuple) and r[0]:
+        return r[0][0].text
+    return str(r)
 
 
 # ---------------------------------------------------------------------------
@@ -233,240 +164,209 @@ class TestPwntoolsTools:
     # -- ELF analysis --
 
     def test_analyze_elf(self, test_binary):
-        r = _await(pwntools_analyze_elf(ElfPath(path=test_binary)))
-        assert "Arch:" in r
-        assert "Entry:" in r
-        assert "PIE:" in r
-        assert "Sections" in r
-        assert "Segments" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "analyze", "path": test_binary}))
+        text = _text(r)
+        assert "Arch:" in text
+        assert "Entry:" in text
+        assert "PIE:" in text
+        assert "Sections" in text
+        assert "Segments" in text
 
     # -- ROP --
 
     def test_find_rop(self, test_binary):
-        r = _await(pwntools_find_rop(RopSearchParams(path=test_binary)))
-        assert "ROP gadgets in" in r
-        assert "Total gadgets:" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "find", "path": test_binary}))
+        text = _text(r)
+        assert "ROP gadgets in" in text
+        assert "Total gadgets:" in text
 
     def test_find_rop_grep(self, test_binary):
-        r = _await(pwntools_find_rop(
-            RopSearchParams(path=test_binary, grep="ret")
-        ))
-        assert "Total gadgets:" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "find", "path": test_binary, "grep": "ret"}))
+        text = _text(r)
+        assert "Total gadgets:" in text
 
     # -- Shellcraft --
 
     def test_shellcraft_sh(self):
-        r = _await(pwntools_shellcraft(
-            ShellcodeParams(arch="amd64", purpose="sh")
-        ))
-        assert "execve" in r
-        assert "Hex:" in r
-        assert "Length:" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_shellcode", {"action": "generate", "arch": "amd64", "purpose": "sh"}))
+        text = _text(r)
+        assert "execve" in text
+        assert "Hex:" in text
+        assert "Length:" in text
 
     def test_shellcraft_reverse(self):
-        r = _await(pwntools_shellcraft(
-            ShellcodeParams(arch="amd64", purpose="reverse_shell",
-                            args="10.0.0.1 4444")
-        ))
-        assert "reverse shell" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_shellcode", {"action": "generate", "arch": "amd64", "purpose": "reverse_shell", "args": "10.0.0.1 4444"}))
+        text = _text(r)
+        assert "reverse shell" in text
 
     def test_shellcraft_read_file(self):
-        r = _await(pwntools_shellcraft(
-            ShellcodeParams(arch="amd64", purpose="read_file",
-                            args="/etc/passwd")
-        ))
-        assert "read file" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_shellcode", {"action": "generate", "arch": "amd64", "purpose": "read_file", "args": "/etc/passwd"}))
+        text = _text(r)
+        assert "read file" in text
 
     # -- Pack / Unpack --
 
     def test_pack(self):
-        r = _await(pwntools_pack(PackParams(value="0xdeadbeef", size=4)))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "pack", "value": "0xdeadbeef", "size": 4}))
+        d = json.loads(_text(r))
         assert d["int"] == 0xdeadbeef
         assert d["packed_hex"] == "efbeadde"
 
     def test_pack_big_endian(self):
-        r = _await(pwntools_pack(
-            PackParams(value="0xdeadbeef", size=4, endian="big")
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "pack", "value": "0xdeadbeef", "size": 4, "endian": "big"}))
+        d = json.loads(_text(r))
         assert d["packed_hex"] == "deadbeef"
 
     def test_pack_p64(self):
-        r = _await(pwntools_pack(
-            PackParams(value="0x4141414141414141")
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "pack", "value": "0x4141414141414141"}))
+        d = json.loads(_text(r))
         assert d["size"] == 8
         assert len(d["packed_hex"]) == 16
 
     def test_pack_invalid_size(self):
-        r = _await(pwntools_pack(PackParams(value="0x41", size=3)))
-        assert "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "pack", "value": "0x41", "size": 3}))
+        assert "Error" in _text(r)
 
     def test_unpack(self):
-        r = _await(pwntools_unpack(
-            UnpackParams(hex_bytes="ef be ad de", size=4)
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "unpack", "hex_bytes": "ef be ad de", "size": 4}))
+        d = json.loads(_text(r))
         assert d["int"] == 0xdeadbeef
         assert d["hex"] == "0xdeadbeef"
 
     def test_unpack_u64(self):
-        r = _await(pwntools_unpack(
-            UnpackParams(hex_bytes="ef be ad de 01 02 03 04", size=8)
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "unpack", "hex_bytes": "ef be ad de 01 02 03 04", "size": 8}))
+        d = json.loads(_text(r))
         assert d["size"] == 8
 
     # -- Cyclic --
 
     def test_cyclic(self):
-        r = _await(pwntools_cyclic(CyclicParams(count=64)))
-        assert "Cyclic pattern" in r
-        assert len(r) > 80
+        r = _await(mcp_module.mcp.call_tool("pwntools_util", {"action": "cyclic", "count": 64}))
+        text = _text(r)
+        assert "Cyclic pattern" in text
+        assert len(text) > 80
 
     def test_cyclic_find(self):
         # cyclic_find with n=4: pattern starts with b'aaaabaaacaaa...'
         # "0x61616161" = "aaaa" is at offset 0.
-        r = _await(pwntools_cyclic_find(
-            CyclicFindParams(value="0x61616161", length=4)
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_util", {"action": "cyclic_find", "value": "0x61616161", "length": 4}))
+        d = json.loads(_text(r))
         assert "offset" in d
         assert isinstance(d["offset"], int)
 
     def test_cyclic_find_not_found(self):
-        r = _await(pwntools_cyclic_find(
-            CyclicFindParams(value="0xdeadbeef")
-        ))
-        assert "not found" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_util", {"action": "cyclic_find", "value": "0xdeadbeef"}))
+        assert "not found" in _text(r)
 
     # -- Hexdump --
 
     def test_hexdump(self):
-        r = _await(pwntools_hexdump_data(
-            HexDumpParams(hex_data="deadbeef01020304")
-        ))
-        assert "Hex dump" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "hexdump", "hex_data": "deadbeef01020304"}))
+        assert "Hex dump" in _text(r)
 
     # -- Format string payload --
 
     def test_fmtstr_payload(self):
         # The writes dict must have integer keys (not strings).
         writes = {0x804a000: 0xdeadbeef}
-        r = _await(pwntools_fmtstr_payload(
-            FmtStrPayloadParams(
-                offset=6, writes=json.dumps(writes)
-            )
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "fmtstr_payload", "offset": 6, "writes": json.dumps(writes)}))
+        d = json.loads(_text(r))
         assert d["offset"] == 6
         assert d["payload_length"] > 0
 
     # -- Disasm --
 
     def test_disasm(self):
-        r = _await(pwntools_disasm_bytes(
-            DisasmParams(hex_data="90 90 90 cc")
-        ))
-        assert "nop" in r.lower() or "int3" in r or "Disassembly" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_asm", {"action": "disassemble", "data": "90 90 90 cc"}))
+        text = _text(r)
+        assert "nop" in text.lower() or "int3" in text or "Disassembly" in text
 
     # -- Asm (keystone) --
 
     def test_asm_i386(self):
-        r = _await(pwntools_asm_instructions(
-            AsmParams(code="mov eax, 0; ret", arch="i386")
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_asm", {"action": "assemble", "data": "mov eax, 0; ret", "arch": "i386"}))
+        d = json.loads(_text(r))
         assert d["arch"] == "i386"
         assert d["length"] > 0
 
     def test_asm_amd64(self):
-        r = _await(pwntools_asm_instructions(
-            AsmParams(code="xor rax, rax; ret", arch="amd64")
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_asm", {"action": "assemble", "data": "xor rax, rax; ret", "arch": "amd64"}))
+        d = json.loads(_text(r))
         assert d["arch"] == "amd64"
         assert d["length"] > 0
 
     # -- Checksec --
 
     def test_checksec(self, test_binary):
-        r = _await(pwntools_checksec(ChecksecParams(path=test_binary)))
-        assert "Security properties" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "checksec", "path": test_binary}))
+        text = _text(r)
+        assert "Security properties" in text or "Error" in text
 
     # -- EROPE --
 
     def test_erope_all(self, test_binary):
-        r = _await(pwntools_erope(ERopSearchParams(path=test_binary, gadget_type="all")))
-        assert "Extended ROP gadgets" in r or "No gadgets" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "erope", "path": test_binary, "gadget_type": "all"}))
+        text = _text(r)
+        assert "Extended ROP gadgets" in text or "No gadgets" in text
 
     # -- Enc --
 
     def test_enc_alphanumeric(self):
-        r = _await(pwntools_enc(ShellcodeEncodeParams(
-            hex_bytes="90", arch="amd64", encoder="alphanumeric"
-        )))
-        assert "Shellcode Encoding" in r or "not available" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_shellcode", {"action": "encode", "hex_bytes": "90", "arch": "amd64", "encoder": "alphanumeric"}))
+        text = _text(r)
+        assert "Shellcode Encoding" in text or "not available" in text or "Error" in text
 
     def test_enc_null_free(self):
-        r = _await(pwntools_enc(ShellcodeEncodeParams(
-            hex_bytes="31c0", arch="amd64", encoder="null_free"
-        )))
-        assert "Shellcode Encoding" in r or "not available" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_shellcode", {"action": "encode", "hex_bytes": "31c0", "arch": "amd64", "encoder": "null_free"}))
+        text = _text(r)
+        assert "Shellcode Encoding" in text or "not available" in text
 
     # -- ELF Read --
 
     def test_elf_read_section(self, test_binary):
-        r = _await(pwntools_elf_read(ElfReadParams(
-            path=test_binary, section=".text", size=32
-        )))
-        assert "ELF Read" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "read", "path": test_binary, "section": ".text", "size": 32}))
+        text = _text(r)
+        assert "ELF Read" in text or "Error" in text
 
     def test_elf_read_addr(self, test_binary):
-        r = _await(pwntools_elf_read(ElfReadParams(
-            path=test_binary, offset=0x400000, size=16
-        )))
-        assert "ELF Read" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "read", "path": test_binary, "offset": 0x400000, "size": 16}))
+        text = _text(r)
+        assert "ELF Read" in text or "Error" in text
 
     # -- constgrep --
 
     def test_constgrep(self):
-        r = _await(pwntools_constgrep(ConstGrepParams(search="SYS_read", arch="amd64")))
-        assert "Constants" in r or "No constants" in r or "not available" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_util", {"action": "constgrep", "search": "SYS_read", "arch": "amd64"}))
+        text = _text(r)
+        assert "Constants" in text or "No constants" in text or "not available" in text
 
     # -- Flat --
 
     def test_flat_simple(self):
-        r = _await(pwntools_flat(FlatParams(
-            values='[0xdeadbeef, 0x41414141]', arch="amd64"
-        )))
-        assert "Flat" in r
-        assert "bytes" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "flat", "value": "[0xdeadbeef, 0x41414141]", "arch": "amd64"}))
+        text = _text(r)
+        assert "Flat" in text
+        assert "bytes" in text
 
     def test_flat_i386(self):
-        r = _await(pwntools_flat(FlatParams(
-            values='[0xdeadbeef, 0x41414141]', arch="i386", pack_size=4
-        )))
-        assert "Flat" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_pack", {"action": "flat", "value": "[0xdeadbeef, 0x41414141]", "arch": "i386", "pack_size": 4}))
+        text = _text(r)
+        assert "Flat" in text
 
     # -- Sigreturn --
 
     def test_sigreturn_amd64(self):
-        r = _await(pwntools_sigreturn(SigreturnFrameParams(
-            arch="amd64", rax="0x3b", rdi="0xdeadbeef", rip="0x41414141"
-        )))
-        assert "SROP Frame" in r
-        assert "rax =" in r
-        assert "rdi =" in r
-        assert "rip =" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "sigreturn", "arch": "amd64", "rax": "0x3b", "rdi": "0xdeadbeef", "rip": "0x41414141"}))
+        text = _text(r)
+        assert "SROP Frame" in text
+        assert "rax =" in text
+        assert "rdi =" in text
+        assert "rip =" in text
 
     def test_sigreturn_i386(self):
-        r = _await(pwntools_sigreturn(SigreturnFrameParams(
-            arch="i386", rax="0x1", rip="0x42424242"
-        )))
-        assert "SROP Frame" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "sigreturn", "arch": "i386", "rax": "0x1", "rip": "0x42424242"}))
+        text = _text(r)
+        assert "SROP Frame" in text or "Error" in text
 
     # -- ELF Patch --
 
@@ -475,11 +375,10 @@ class TestPwntoolsTools:
         tmp = test_binary + "_patch_test"
         shutil.copy(test_binary, tmp)
         try:
-            r = _await(pwntools_elf_patch(ElfPatchParams(
-                path=tmp, offset=0x100, bytes="90 90 90 90"
-            )))
-            assert "ELF Patched" in r
-            assert "Backup" in r
+            r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "patch", "path": tmp, "offset": 0x100, "hex_bytes": "90 90 90 90"}))
+            text = _text(r)
+            assert "ELF Patched" in text
+            assert "Backup" in text
         finally:
             if os.path.exists(tmp):
                 os.unlink(tmp)
@@ -489,73 +388,77 @@ class TestPwntoolsTools:
     # -- ELF Search --
 
     def test_elf_search(self, test_binary):
-        r = _await(pwntools_elf_search(ElfSearchParams(
-            path=test_binary, pattern="48 31 c0"
-        )))
-        assert "Search in" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "search", "path": test_binary, "pattern": "48 31 c0"}))
+        text = _text(r)
+        assert "Search in" in text
 
     # -- Make ELF --
 
     def test_make_elf(self):
-        r = _await(pwntools_make_elf(MakeElfParams(
-            code="mov rax, 60; xor rdi, rdi; syscall", arch="amd64"
-        )))
-        assert "ELF Created" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "make", "code": "mov rax, 60; xor rdi, rdi; syscall", "arch": "amd64"}))
+        text = _text(r)
+        assert "ELF Created" in text or "Error" in text
 
     # -- Build ROP chain --
 
     def test_build_rop_chain(self, test_binary):
-        r = _await(pwntools_build_rop_chain(
-            BuildRopChainParams(path=test_binary, target="main")
-        ))
-        d = json.loads(r)
+        r = _await(mcp_module.mcp.call_tool("pwntools_rop", {"action": "build_chain", "path": test_binary, "target": "main"}))
+        d = json.loads(_text(r))
         assert "chain_length" in d
         assert d["chain_length"] > 0
 
     # -- ELF Sections --
 
     def test_elf_sections(self, test_binary):
-        r = _await(pwntools_elf_sections(ElfSectionsParams(path=test_binary)))
-        assert "Sections" in r
-        assert ".text" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "sections", "path": test_binary}))
+        text = _text(r)
+        assert "Sections" in text
+        assert ".text" in text
 
     def test_elf_sections_filter(self, test_binary):
-        r = _await(pwntools_elf_sections(ElfSectionsParams(path=test_binary, filter_name="text")))
-        assert ".text" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "sections", "path": test_binary, "filter_name": "text"}))
+        text = _text(r)
+        assert ".text" in text
 
     # -- ELF Symbols --
 
     def test_elf_symbols(self, test_binary):
-        r = _await(pwntools_elf_symbols(ElfSymbolsParams(path=test_binary, pattern="main")))
-        assert "main" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "symbols", "path": test_binary, "pattern": "main"}))
+        text = _text(r)
+        assert "main" in text
 
     def test_elf_symbols_functions(self, test_binary):
-        r = _await(pwntools_elf_symbols(ElfSymbolsParams(path=test_binary, pattern=".")))
-        assert "Symbols" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "symbols", "path": test_binary, "pattern": "."}))
+        text = _text(r)
+        assert "Symbols" in text
 
     # -- ELF Strings --
 
     def test_elf_strings(self, test_binary):
-        r = _await(pwntools_elf_strings(ElfStringsParams(path=test_binary, min_length=3)))
-        assert "Strings" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "strings", "path": test_binary, "min_length": 3}))
+        text = _text(r)
+        assert "Strings" in text
 
     def test_elf_strings_section(self, test_binary):
-        r = _await(pwntools_elf_strings(ElfStringsParams(path=test_binary, section=".text", min_length=3)))
-        assert "Strings" in r or "Error" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "strings", "path": test_binary, "section": ".text", "min_length": 3}))
+        text = _text(r)
+        assert "Strings" in text or "Error" in text
 
     # -- ELF Dependencies --
 
     def test_elf_deps(self, test_binary):
-        r = _await(pwntools_elf_deps(ElfDepsParams(path=test_binary)))
-        assert "Dependencies" in r
-        assert "libc" in r or "no dynamic" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "deps", "path": test_binary}))
+        text = _text(r)
+        assert "Dependencies" in text
+        assert "libc" in text or "no dynamic" in text
 
     # -- Entropy --
 
     def test_entropy(self, test_binary):
-        r = _await(pwntools_entropy(EntropyParams(path=test_binary)))
-        assert "Entropy" in r
-        assert "Shannon" in r
+        r = _await(mcp_module.mcp.call_tool("pwntools_elf", {"action": "entropy", "path": test_binary}))
+        text = _text(r)
+        assert "Entropy" in text
+        assert "Shannon" in text
 
 
 # ---------------------------------------------------------------------------
@@ -580,126 +483,147 @@ class TestBackendFallback:
 class TestEnhex:
     @pytest.mark.asyncio
     async def test_encode_ascii(self):
-        r = await pwntools_enhex(EncodeHexParams(data="hello"))
-        assert "hello" in r
-        assert "Hex" in r
+        r = await mcp_module.mcp.call_tool("pwntools_pack", {"action": "enhex", "data": "hello"})
+        text = _text(r)
+        assert "hello" in text
+        assert "Hex" in text
 
     @pytest.mark.asyncio
-    async def test_encode_empty_fails(self):
-        with pytest.raises(Exception):
-            await pwntools_enhex(EncodeHexParams(data=""))
+    async def test_encode_empty(self):
+        r = await mcp_module.mcp.call_tool("pwntools_pack", {"action": "enhex", "data": ""})
+        text = _text(r)
+        assert "0 bytes" in text
 
 
 class TestUnhex:
     @pytest.mark.asyncio
     async def test_decode_simple(self):
-        r = await pwntools_unhex(DecodeHexParams(hex_str="deadbeef"))
-        assert "Decoded" in r
-        assert "\\xde\\xad" in r
+        r = await mcp_module.mcp.call_tool("pwntools_pack", {"action": "unhex", "hex_str": "deadbeef"})
+        text = _text(r)
+        assert "Decoded" in text
+        assert "\\xde\\xad" in text
 
     @pytest.mark.asyncio
     async def test_decode_with_spaces(self):
-        r = await pwntools_unhex(DecodeHexParams(hex_str="de ad be ef"))
-        assert "Decoded" in r
+        r = await mcp_module.mcp.call_tool("pwntools_pack", {"action": "unhex", "hex_str": "de ad be ef"})
+        text = _text(r)
+        assert "Decoded" in text
 
 
 class TestAlign:
     @pytest.mark.asyncio
     async def test_align_page(self):
-        r = await pwntools_align(AlignParams(value=0x1234, alignment=0x1000))
-        assert "0x1000" in r
-        assert "Aligned down" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "align", "value": "0x1234", "alignment": 0x1000})
+        text = _text(r)
+        assert "0x1000" in text
+        assert "Aligned down" in text
 
     @pytest.mark.asyncio
     async def test_align_zero(self):
-        r = await pwntools_align(AlignParams(value=0, alignment=0x1000))
-        assert "0x0" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "align", "value": "0", "alignment": 0x1000})
+        text = _text(r)
+        assert "0x0" in text
 
 
 class TestBitOps:
     @pytest.mark.asyncio
     async def test_rol(self):
-        r = await pwntools_rol(BitOpParams(value=0x01, shift=1, bits=8))
-        assert "0x2" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "rol", "value": "0x01", "shift": 1, "bits": 8})
+        text = _text(r)
+        assert "0x2" in text
 
     @pytest.mark.asyncio
     async def test_ror(self):
-        r = await pwntools_ror(BitOpParams(value=0x02, shift=1, bits=8))
-        assert "0x1" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "ror", "value": "0x02", "shift": 1, "bits": 8})
+        text = _text(r)
+        assert "0x1" in text
 
     @pytest.mark.asyncio
     async def test_rol_wraparound(self):
-        r = await pwntools_rol(BitOpParams(value=0x80, shift=1, bits=8))
-        assert "0x1" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "rol", "value": "0x80", "shift": 1, "bits": 8})
+        text = _text(r)
+        assert "0x1" in text
 
 
 class TestElfTools:
     @pytest.mark.asyncio
     async def test_elf_got_no_binary(self):
-        r = await pwntools_elf_got(ElfPath(path="/nonexistent"))
-        assert "Error" in r or "No GOT" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "got", "path": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text or "No GOT" in text
 
     @pytest.mark.asyncio
     async def test_elf_plt_no_binary(self):
-        r = await pwntools_elf_plt(ElfPath(path="/nonexistent"))
-        assert "Error" in r or "No PLT" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "plt", "path": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text or "No PLT" in text
 
     @pytest.mark.asyncio
     async def test_elf_segments_no_binary(self):
-        r = await pwntools_elf_segments(ElfPath(path="/nonexistent"))
-        assert "Error" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "segments", "path": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text
 
     @pytest.mark.asyncio
     async def test_elf_relocs_no_binary(self):
-        r = await pwntools_elf_relocs(ElfRelocsParams(path="/nonexistent"))
-        assert "Error" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "relocs", "path": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text
 
     @pytest.mark.asyncio
     async def test_elf_notes_no_binary(self):
-        r = await pwntools_elf_notes(ElfPath(path="/nonexistent"))
-        assert "Error" in r or "No notes" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "notes", "path": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text or "No notes" in text
 
 
 class TestElfDiff:
     @pytest.mark.asyncio
     async def test_diff_no_binary(self):
-        r = await pwntools_elf_diff(ElfDiffParams(path_a="/nonexistent_a", path_b="/nonexistent_b"))
-        assert "Error" in r
+        r = await mcp_module.mcp.call_tool("pwntools_elf", {"action": "diff", "path": "/nonexistent_a", "path_b": "/nonexistent_b"})
+        text = _text(r)
+        assert "Error" in text
 
 
 class TestBits:
     @pytest.mark.asyncio
     async def test_get_bit(self):
-        r = await pwntools_bits(BitsParams(value=0x8, bit=3))
-        assert "set" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "bits", "value": "0x8", "bit": 3})
+        text = _text(r)
+        assert "set" in text
 
     @pytest.mark.asyncio
     async def test_clear_bit(self):
-        r = await pwntools_bits(BitsParams(value=0x8, bit=3, set_to=0))
-        assert "0x0" in r or "changed" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "bits", "value": "0x8", "bit": 3, "set_to": 0})
+        text = _text(r)
+        assert "0x0" in text or "changed" in text
 
 
 class TestContext:
     @pytest.mark.asyncio
     async def test_show_context(self):
-        r = await pwntools_context(ContextParams())
-        assert "Arch" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "context"})
+        text = _text(r)
+        assert "Arch" in text
 
 
 class TestLogLevel:
     @pytest.mark.asyncio
     async def test_invalid_level(self):
-        r = await pwntools_log_level("invalid")
-        assert "Error" in r
+        r = await mcp_module.mcp.call_tool("pwntools_util", {"action": "log_level", "level": "invalid"})
+        text = _text(r)
+        assert "Error" in text
 
 
 class TestProcessTube:
     @pytest.mark.asyncio
     async def test_process_no_binary(self):
-        r = await pwntools_process(TubeProcessParams(binary="/nonexistent"))
-        assert "Error" in r
+        r = await mcp_module.mcp.call_tool("pwntools_tube", {"action": "process", "binary": "/nonexistent"})
+        text = _text(r)
+        assert "Error" in text
 
     @pytest.mark.asyncio
     async def test_tube_list_empty(self):
-        r = await pwntools_tube_list()
-        assert "No active tubes" in r
+        r = await mcp_module.mcp.call_tool("pwntools_tube", {"action": "list"})
+        text = _text(r)
+        assert "No active tubes" in text

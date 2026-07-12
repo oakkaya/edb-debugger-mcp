@@ -10,7 +10,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from edb_debugger_mcp import mcp
-from gdb_backend import GDBBackend
+from edb_debugger_mcp.gdb_backend import GDBBackend
 
 BIN = "/tmp/edb_vuln"
 R = "\033[31m"; G = "\033[32m"; Y = "\033[33m"; B = "\033[34m"; C = "\033[36m"; N = "\033[0m"

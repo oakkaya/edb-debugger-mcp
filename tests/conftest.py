@@ -3,7 +3,7 @@ import os
 import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from gdb_backend import GDBBackend
+from edb_debugger_mcp.gdb_backend import GDBBackend
 
 
 @pytest.fixture

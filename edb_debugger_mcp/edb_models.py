@@ -504,3 +504,52 @@ class AddressRefInput(BaseModel):
 class ProcessStringsInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     min_length: int = Field(default=4, description="Minimum string length to find", ge=2, le=256)
+
+
+# --- pwntools models (used by composite tools and tests) ---
+
+class ElfPath(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+
+
+class RopSearchParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    grep: Optional[str] = Field(default="", description="Filter gadgets (e.g. 'pop rdi', 'syscall')")
+    depth: int = Field(default=6, description="Max instruction depth", ge=1, le=20)
+    count: int = Field(default=50, description="Max results", ge=1, le=500)
+
+
+class PackParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: str = Field(..., description="Value to pack (int like 0xdeadbeef or hex string)")
+    size: int = Field(default=8, description="Byte size: 1, 2, 4, or 8", ge=1, le=8)
+    endian: str = Field(default="little", description="Endianness: little or big")
+
+
+class UnpackParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    hex_bytes: str = Field(..., description="Hex bytes to unpack (e.g., 'ef be ad de')")
+    size: int = Field(default=8, description="Byte size: 1, 2, 4, or 8", ge=1, le=8)
+    endian: str = Field(default="little", description="Endianness: little or big")
+
+
+class CyclicFindParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: str = Field(..., description="Value to find (hex address like 0x61616162 or sub-pattern)")
+    length: int = Field(default=256, description="Cyclic pattern length to search", ge=1, le=10000)
+
+
+class FmtStrPayloadParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    offset: int = Field(..., description="Format string offset on stack", ge=1)
+    writes: str = Field(..., description="Writes as JSON dict: {addr: value, ...} or {addr: (value, size), ...}")
+    numbwritten: int = Field(default=0, description="Bytes already written by printf")
+
+
+class BuildRopChainParams(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    path: str = Field(..., description="Absolute path to the ELF binary", min_length=1)
+    target: str = Field(..., description="Target address or function (e.g., 'system', '0x401234')")
+    args: Optional[str] = Field(default="", description="Arguments for the target call (e.g., '/bin/sh')")
