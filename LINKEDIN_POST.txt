@@ -1,28 +1,19 @@
-EDB Debugger MCP is now on PyPI & Docker 🚀
+EDB Debugger MCP v1.3.0 is out — 207 flat tools → 26 composite tools 🚀
 
-Linux reverse engineering has always lacked an "OllyDbg moment" — a debugger that's both powerful and scriptable. EDB (Evan's Debugger) came closest with its 22 plugins and intuitive GUI, but it was trapped in manual interaction.
+BloodHound MCP taught us that every tool is a tax on context. Their blog post showed 100 tools eating 19K tokens per query. I took that lesson seriously.
 
-Until now.
+The new architecture groups related operations into parameter-driven composite tools. Instead of 15 separate memory tools (read, write, search, fill, compare, map...), there's one edb_memory tool with an action parameter. The LLM spends ~75% fewer tokens on interface descriptions and more on actual debugging.
 
-EDB Debugger MCP bridges EDB's debugging engine with AI via the Model Context Protocol (MCP). Every feature — breakpoints, memory analysis, ROP search, heap inspection, register manipulation — is exposed as a tool callable by Claude, Cursor, or any MCP host.
+What changed:
+• 26 tools (19 edb_ + 7 pwntools_) replacing 207
+• Parameter dispatch with Literal types — type-safe, compact
+• Flat functions preserved for direct scripting
+• Same 452 tests, same coverage, same 172 backend methods
 
-207 tools. 452 tests. One pip install away.
-
-pip install edb-debugger-mcp
-
-Then ask your AI: "Load /bin/ls, find ROP gadgets with pop rdi, and generate execve shellcode."
-
-What makes this different:
-• GDB MI backend — production-grade, not a toy
-• pwntools integration for ROP/shellcode/ELF analysis
-• Web UI for browser-based debugging
-• IDA Pro, Binary Ninja, Ghidra plugins
-• Docker image for instant setup
-
-This is what AI-native debugging looks like.
+pip install edb-debugger-mcp==1.3.0
 
 → GitHub: https://github.com/oakkaya/edb-debugger-mcp
 → PyPI: pip install edb-debugger-mcp
-→ Docker: ghcr.io/oakkaya/edb-debugger-mcp
+→ Docker: ghcr.io/oakkaya/edb-debugger-mcp:latest
 
-#ReverseEngineering #CTF #AI #Debugging #Linux #MCP #Python #Infosec
+#ReverseEngineering #AI #MCP #Debugging #Linux #Python
