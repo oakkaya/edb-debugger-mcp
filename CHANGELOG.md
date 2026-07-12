@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1 (2026-07-12)
+
+- **Cleanup**: Remove stale references to deleted flat files (Dockerfile, CI, Makefile, README, pyproject.toml, CONTRIBUTING)
+- **Wheel fix**: `gdb_backend.py`/`edb_models.py` properly included inside `edb_debugger_mcp/` package (was root-level)
+
 ## v1.3.0 (2026-07-12)
 
 - **Major refactor**: 207 flat tools → **26 composite tools** (19 edb_ + 7 pwntools_)
