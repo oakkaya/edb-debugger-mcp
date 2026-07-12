@@ -1,3 +1,8 @@
-You were right. Shipped v1.3.0 — 207 tools → 26 composite (parameter dispatch). Token overhead ~4K→1.8K. Same operations, less context burn. Details + measurement script in the repo.
+You were right — every flat tool was burning context. Took the BloodHound MCP approach and went all in:
 
-Thanks for the nudge.
+207 tools → 26 composite (parameter dispatch)
+~6K lines of flat implementations eliminated
+Single composite module, no dead files
+Token overhead ~4K → 1.8K per query
+
+measure_tokens.py in the repo uses the same cl100k_base methodology if you want to compare. Thanks for the nudge — made the project genuinely better.

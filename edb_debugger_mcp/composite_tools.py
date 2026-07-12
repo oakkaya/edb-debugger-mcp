@@ -1,9 +1,25 @@
-"""Composite MCP tools for pwntools — 7 tools replacing all 50+ flat functions."""
+"""26 composite MCP tools (19 edb_ + 7 pwntools_) with parameter-driven dispatch."""
 
+import functools
 import json
 from typing import Literal, Optional
 
 from edb_debugger_mcp._mcp import mcp, backend, GDBBackendError
+
+
+def gdb_error_handler(func):
+    """Wrap an edb_* tool with consistent GDB error handling."""
+    @functools.wraps(func)
+    async def wrapper(*args: object, **kwargs: object) -> str:
+        try:
+            return await func(*args, **kwargs)
+        except GDBBackendError as e:
+            a = kwargs.get("action", "?")
+            return f"Error ({a}): {e}"
+        except Exception as e:
+            a = kwargs.get("action", "?")
+            return f"Error ({a}): Unexpected error: {e}"
+    return wrapper
 
 
 _PWNTOOLS_READY = None
@@ -1860,6 +1876,7 @@ async def pwntools_tube(
 # ====================================================================
 
 @mcp.tool(name="edb_exec")
+@gdb_error_handler
 async def edb_exec(
     action: Literal[
         "load_program", "attach", "detach", "kill", "run",
@@ -1871,36 +1888,32 @@ async def edb_exec(
     address: str = "",
     mode: str = "",
 ) -> str:
-    try:
-        if action == "load_program":
-            return await backend.load_program(path, args)
-        elif action == "attach":
-            return await backend.attach(pid)
-        elif action == "detach":
-            return await backend.detach()
-        elif action == "kill":
-            return await backend.kill()
-        elif action == "run":
-            return await backend.run()
-        elif action == "continue_exec":
-            return await backend.continue_exec()
-        elif action == "interrupt":
-            return await backend.interrupt()
-        elif action == "restart":
-            return await backend.restart()
-        elif action == "continue_to_address":
-            loc = await backend.continue_to_address(address)
-            return json.dumps(loc, indent=2)
-        elif action == "follow_fork":
-            return await backend.follow_fork(mode)
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "load_program":
+        return await backend.load_program(path, args)
+    elif action == "attach":
+        return await backend.attach(pid)
+    elif action == "detach":
+        return await backend.detach()
+    elif action == "kill":
+        return await backend.kill()
+    elif action == "run":
+        return await backend.run()
+    elif action == "continue_exec":
+        return await backend.continue_exec()
+    elif action == "interrupt":
+        return await backend.interrupt()
+    elif action == "restart":
+        return await backend.restart()
+    elif action == "continue_to_address":
+        loc = await backend.continue_to_address(address)
+        return json.dumps(loc, indent=2)
+    elif action == "follow_fork":
+        return await backend.follow_fork(mode)
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_step")
+@gdb_error_handler
 async def edb_step(
     action: Literal[
         "step_into", "step_over", "step_out",
@@ -1909,54 +1922,46 @@ async def edb_step(
     ],
     count: int = 1,
 ) -> str:
-    try:
-        if action == "step_into":
-            loc = await backend.step_into()
-            return json.dumps(loc, indent=2)
-        elif action == "step_over":
-            loc = await backend.step_over()
-            return json.dumps(loc, indent=2)
-        elif action == "step_out":
-            loc = await backend.step_out()
-            return json.dumps(loc, indent=2)
-        elif action == "step_instruction":
-            loc = await backend.step_instruction(count)
-            return json.dumps(loc, indent=2) if isinstance(loc, dict) else str(loc)
-        elif action == "step_over_instruction":
-            loc = await backend.step_over_instruction(count)
-            return json.dumps(loc, indent=2) if isinstance(loc, dict) else str(loc)
-        elif action == "reverse_step":
-            return await backend.reverse_step(count)
-        elif action == "reverse_continue":
-            return await backend.reverse_continue()
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "step_into":
+        loc = await backend.step_into()
+        return json.dumps(loc, indent=2)
+    elif action == "step_over":
+        loc = await backend.step_over()
+        return json.dumps(loc, indent=2)
+    elif action == "step_out":
+        loc = await backend.step_out()
+        return json.dumps(loc, indent=2)
+    elif action == "step_instruction":
+        loc = await backend.step_instruction(count)
+        return json.dumps(loc, indent=2) if isinstance(loc, dict) else str(loc)
+    elif action == "step_over_instruction":
+        loc = await backend.step_over_instruction(count)
+        return json.dumps(loc, indent=2) if isinstance(loc, dict) else str(loc)
+    elif action == "reverse_step":
+        return await backend.reverse_step(count)
+    elif action == "reverse_continue":
+        return await backend.reverse_continue()
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_trace")
+@gdb_error_handler
 async def edb_trace(
     action: Literal["trace_start", "trace_stop", "trace_show"],
     address: str = "",
     max_size: int = 1024,
 ) -> str:
-    try:
-        if action == "trace_start":
-            return await backend.trace_start(address, max_size)
-        elif action == "trace_stop":
-            return await backend.trace_stop()
-        elif action == "trace_show":
-            return await backend.trace_show()
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "trace_start":
+        return await backend.trace_start(address, max_size)
+    elif action == "trace_stop":
+        return await backend.trace_stop()
+    elif action == "trace_show":
+        return await backend.trace_show()
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_breakpoint")
+@gdb_error_handler
 async def edb_breakpoint(
     action: Literal[
         "set", "set_hardware", "set_watchpoint",
@@ -1974,52 +1979,48 @@ async def edb_breakpoint(
     file_path: str = "",
     commands: Optional[list[str]] = None,
 ) -> str:
-    try:
-        if action == "set":
-            bkpt = await backend.set_breakpoint(location, condition)
-            num = bkpt.get("number", "?")
-            addr = bkpt.get("addr", location)
-            func = f" at {bkpt['func']}" if bkpt.get("func") else ""
-            return f"Breakpoint {num} at {addr}{func}"
-        elif action == "set_hardware":
-            bkpt = await backend.set_hardware_breakpoint(location)
-            num = bkpt.get("number", "?")
-            addr = bkpt.get("addr", location)
-            return f"Hardware breakpoint {num} at {addr}"
-        elif action == "set_watchpoint":
-            wp = await backend.set_watchpoint(expression, watch_type)
-            return json.dumps(wp) if wp else f"Watchpoint set on {expression}"
-        elif action == "remove":
-            return await backend.remove_breakpoint(number)
-        elif action == "enable":
-            return await backend.enable_breakpoint(number)
-        elif action == "disable":
-            return await backend.disable_breakpoint(number)
-        elif action == "list":
-            return await backend.list_breakpoints()
-        elif action == "set_condition":
-            return await backend.set_breakpoint_condition(number, condition)
-        elif action == "set_ignore_count":
-            return await backend.set_breakpoint_ignore_count(number, count)
-        elif action == "set_log":
-            return await backend.set_conditional_log_breakpoint(location, log_message)
-        elif action == "export":
-            return await backend.breakpoint_export(file_path)
-        elif action == "import":
-            return await backend.breakpoint_import(file_path)
-        elif action == "commands":
-            cmds = commands or []
-            return await backend.breakpoint_commands(number, cmds)
-        elif action == "list_types":
-            return await backend.list_breakpoint_types()
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "set":
+        bkpt = await backend.set_breakpoint(location, condition)
+        num = bkpt.get("number", "?")
+        addr = bkpt.get("addr", location)
+        func = f" at {bkpt['func']}" if bkpt.get("func") else ""
+        return f"Breakpoint {num} at {addr}{func}"
+    elif action == "set_hardware":
+        bkpt = await backend.set_hardware_breakpoint(location)
+        num = bkpt.get("number", "?")
+        addr = bkpt.get("addr", location)
+        return f"Hardware breakpoint {num} at {addr}"
+    elif action == "set_watchpoint":
+        wp = await backend.set_watchpoint(expression, watch_type)
+        return json.dumps(wp) if wp else f"Watchpoint set on {expression}"
+    elif action == "remove":
+        return await backend.remove_breakpoint(number)
+    elif action == "enable":
+        return await backend.enable_breakpoint(number)
+    elif action == "disable":
+        return await backend.disable_breakpoint(number)
+    elif action == "list":
+        return await backend.list_breakpoints()
+    elif action == "set_condition":
+        return await backend.set_breakpoint_condition(number, condition)
+    elif action == "set_ignore_count":
+        return await backend.set_breakpoint_ignore_count(number, count)
+    elif action == "set_log":
+        return await backend.set_conditional_log_breakpoint(location, log_message)
+    elif action == "export":
+        return await backend.breakpoint_export(file_path)
+    elif action == "import":
+        return await backend.breakpoint_import(file_path)
+    elif action == "commands":
+        cmds = commands or []
+        return await backend.breakpoint_commands(number, cmds)
+    elif action == "list_types":
+        return await backend.list_breakpoint_types()
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_register")
+@gdb_error_handler
 async def edb_register(
     action: Literal[
         "get_all", "get", "set", "dump",
@@ -2028,39 +2029,35 @@ async def edb_register(
     name: str = "",
     value: str = "",
 ) -> str:
-    try:
-        if action == "get_all":
-            regs = await backend.get_registers()
-            return json.dumps(regs, indent=2)
-        elif action == "get":
-            val = await backend.get_register(name)
-            return f"{name} = {val}"
-        elif action == "set":
-            return await backend.set_register(name, value)
-        elif action == "dump":
-            regs = await backend.get_registers()
-            lines = ["| Register | Value |", "|----------|-------|"]
-            for rname in ("rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", "rip", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "eflags", "cs", "ss", "ds", "es", "fs", "gs"):
-                val = regs.get(rname, "")
-                if val:
-                    lines.append(f"| {rname} | {val} |")
-            return "\n".join(lines)
-        elif action == "fpu":
-            return await backend.get_fpu_state()
-        elif action == "simd":
-            return await backend.get_simd_state()
-        elif action == "eflags":
-            return await backend.get_eflags()
-        elif action == "enum":
-            return await backend.enum_registers()
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "get_all":
+        regs = await backend.get_registers()
+        return json.dumps(regs, indent=2)
+    elif action == "get":
+        val = await backend.get_register(name)
+        return f"{name} = {val}"
+    elif action == "set":
+        return await backend.set_register(name, value)
+    elif action == "dump":
+        regs = await backend.get_registers()
+        lines = ["| Register | Value |", "|----------|-------|"]
+        for rname in ("rax", "rbx", "rcx", "rdx", "rsi", "rdi", "rbp", "rsp", "rip", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15", "eflags", "cs", "ss", "ds", "es", "fs", "gs"):
+            val = regs.get(rname, "")
+            if val:
+                lines.append(f"| {rname} | {val} |")
+        return "\n".join(lines)
+    elif action == "fpu":
+        return await backend.get_fpu_state()
+    elif action == "simd":
+        return await backend.get_simd_state()
+    elif action == "eflags":
+        return await backend.get_eflags()
+    elif action == "enum":
+        return await backend.enum_registers()
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_memory")
+@gdb_error_handler
 async def edb_memory(
     action: Literal[
         "read", "write", "write_bytes",
@@ -2088,45 +2085,41 @@ async def edb_memory(
     permissions: str = "",
     output_path: str = "",
 ) -> str:
-    try:
-        if action == "read":
-            return await backend.hex_dump(address, count)
-        elif action == "write":
-            return await backend.write_memory(address, data)
-        elif action == "write_bytes":
-            return await backend.write_memory_bytes(address, hex_bytes)
-        elif action == "search":
-            return await backend.search_memory(pattern, address, length)
-        elif action == "search_instructions":
-            return await backend.search_instructions(pattern, range_start, range_end)
-        elif action == "get_map":
-            return await backend.get_memory_map()
-        elif action == "get_section_info":
-            return await backend.get_section_info(module_name)
-        elif action == "read_as":
-            return await backend.read_memory_as(address, data_type, count)
-        elif action == "fill":
-            return await backend.fill_memory(address, byte_value, count)
-        elif action == "compare":
-            return await backend.compare_memory(address1, address2, count)
-        elif action == "dump_to_file":
-            return await backend.dump_memory_to_file(address, size, file_path)
-        elif action == "set_permissions":
-            return await backend.set_memory_permissions(address, permissions, size)
-        elif action == "get_region_info":
-            return await backend.get_memory_region_info()
-        elif action == "compare_sections":
-            return await backend.compare_sections()
-        elif action == "apply_patches":
-            return await backend.apply_patches_to_file(output_path)
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "read":
+        return await backend.hex_dump(address, count)
+    elif action == "write":
+        return await backend.write_memory(address, data)
+    elif action == "write_bytes":
+        return await backend.write_memory_bytes(address, hex_bytes)
+    elif action == "search":
+        return await backend.search_memory(pattern, address, length)
+    elif action == "search_instructions":
+        return await backend.search_instructions(pattern, range_start, range_end)
+    elif action == "get_map":
+        return await backend.get_memory_map()
+    elif action == "get_section_info":
+        return await backend.get_section_info(module_name)
+    elif action == "read_as":
+        return await backend.read_memory_as(address, data_type, count)
+    elif action == "fill":
+        return await backend.fill_memory(address, byte_value, count)
+    elif action == "compare":
+        return await backend.compare_memory(address1, address2, count)
+    elif action == "dump_to_file":
+        return await backend.dump_memory_to_file(address, size, file_path)
+    elif action == "set_permissions":
+        return await backend.set_memory_permissions(address, permissions, size)
+    elif action == "get_region_info":
+        return await backend.get_memory_region_info()
+    elif action == "compare_sections":
+        return await backend.compare_sections()
+    elif action == "apply_patches":
+        return await backend.apply_patches_to_file(output_path)
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_disassemble")
+@gdb_error_handler
 async def edb_disassemble(
     action: Literal[
         "disassemble", "disassemble_range",
@@ -2140,28 +2133,24 @@ async def edb_disassemble(
     address: str = "",
     instruction: str = "",
 ) -> str:
-    try:
-        if action == "disassemble":
-            return await backend.disassemble(location, count)
-        elif action == "disassemble_range":
-            return await backend.disassemble_range(start, end)
-        elif action == "get_current":
-            inst = await backend.get_current_instruction()
-            return inst if inst else "No instruction at current PC"
-        elif action == "instruction_detail":
-            return await backend.instruction_detail(address)
-        elif action == "assemble":
-            return await backend.assemble(address, instruction)
-        elif action == "analyze_calls":
-            return await backend.analyze_calls_at(address)
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "disassemble":
+        return await backend.disassemble(location, count)
+    elif action == "disassemble_range":
+        return await backend.disassemble_range(start, end)
+    elif action == "get_current":
+        inst = await backend.get_current_instruction()
+        return inst if inst else "No instruction at current PC"
+    elif action == "instruction_detail":
+        return await backend.instruction_detail(address)
+    elif action == "assemble":
+        return await backend.assemble(address, instruction)
+    elif action == "analyze_calls":
+        return await backend.analyze_calls_at(address)
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_stack")
+@gdb_error_handler
 async def edb_stack(
     action: Literal[
         "get", "get_frame", "backtrace",
@@ -2172,29 +2161,25 @@ async def edb_stack(
     value: str = "",
     depth: int = 64,
 ) -> str:
-    try:
-        if action == "get":
-            return await backend.get_stack(count)
-        elif action == "get_frame":
-            return await backend.get_stack_frame(frame_level)
-        elif action == "backtrace":
-            return await backend.get_backtrace(count)
-        elif action == "push":
-            return await backend.stack_push(value)
-        elif action == "pop":
-            return await backend.stack_pop()
-        elif action == "modify":
-            return await backend.stack_modify(value)
-        elif action == "scan_retaddr":
-            return await backend.scan_stack_for_retaddr(depth)
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "get":
+        return await backend.get_stack(count)
+    elif action == "get_frame":
+        return await backend.get_stack_frame(frame_level)
+    elif action == "backtrace":
+        return await backend.get_backtrace(count)
+    elif action == "push":
+        return await backend.stack_push(value)
+    elif action == "pop":
+        return await backend.stack_pop()
+    elif action == "modify":
+        return await backend.stack_modify(value)
+    elif action == "scan_retaddr":
+        return await backend.scan_stack_for_retaddr(depth)
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_symbol")
+@gdb_error_handler
 async def edb_symbol(
     action: Literal[
         "lookup", "function_info", "function_bounds",
@@ -2207,38 +2192,34 @@ async def edb_symbol(
     string_or_address: str = "",
     path: str = "",
 ) -> str:
-    try:
-        if action == "lookup":
-            return await backend.lookup_symbol(name)
-        elif action == "function_info":
-            return await backend.get_function_info(name)
-        elif action == "function_bounds":
-            return await backend.get_function_bounds(name)
-        elif action == "list_functions":
-            return await backend.list_functions()
-        elif action == "find_references":
-            return await backend.find_references(address)
-        elif action == "string_references":
-            return await backend.string_references(string_or_address)
-        elif action == "get_xrefs":
-            return await backend.get_function_xrefs(address)
-        elif action == "goto_start":
-            return await backend.goto_function_start(address)
-        elif action == "entry_point":
-            ep = await backend.get_entry_point()
-            return f"Entry point: {ep}"
-        elif action == "generate_symbols":
-            return await backend.generate_symbols(path)
-        elif action == "binary_info":
-            return await backend.get_binary_info()
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "lookup":
+        return await backend.lookup_symbol(name)
+    elif action == "function_info":
+        return await backend.get_function_info(name)
+    elif action == "function_bounds":
+        return await backend.get_function_bounds(name)
+    elif action == "list_functions":
+        return await backend.list_functions()
+    elif action == "find_references":
+        return await backend.find_references(address)
+    elif action == "string_references":
+        return await backend.string_references(string_or_address)
+    elif action == "get_xrefs":
+        return await backend.get_function_xrefs(address)
+    elif action == "goto_start":
+        return await backend.goto_function_start(address)
+    elif action == "entry_point":
+        ep = await backend.get_entry_point()
+        return f"Entry point: {ep}"
+    elif action == "generate_symbols":
+        return await backend.generate_symbols(path)
+    elif action == "binary_info":
+        return await backend.get_binary_info()
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_expression")
+@gdb_error_handler
 async def edb_expression(
     action: Literal[
         "evaluate", "get_string", "find_strings",
@@ -2252,37 +2233,28 @@ async def edb_expression(
     name: str = "",
     value: str = "",
 ) -> str:
-    try:
-        if action == "evaluate":
-            return await backend.evaluate(expression)
-        elif action == "get_string":
-            return await backend.get_string(address, max_len)
-        elif action == "find_strings":
-            return await backend.find_strings(address, length)
-        elif action == "get_variable":
-            val = await backend.get_variable(name)
-            return f"{name} = {val}"
-        elif action == "set_variable":
-            return await backend.set_variable(name, value)
-        elif action == "get_arguments":
-            return await backend.get_arguments()
-        elif action == "get_locals":
-            return await backend.get_locals()
-        elif action == "watch":
-            return await backend.watch_expression(expression)
-        return f"Unknown action: {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
-
-import json
-from typing import Literal, Optional
-
-from edb_debugger_mcp._mcp import mcp, backend, GDBBackendError
+    if action == "evaluate":
+        return await backend.evaluate(expression)
+    elif action == "get_string":
+        return await backend.get_string(address, max_len)
+    elif action == "find_strings":
+        return await backend.find_strings(address, length)
+    elif action == "get_variable":
+        val = await backend.get_variable(name)
+        return f"{name} = {val}"
+    elif action == "set_variable":
+        return await backend.set_variable(name, value)
+    elif action == "get_arguments":
+        return await backend.get_arguments()
+    elif action == "get_locals":
+        return await backend.get_locals()
+    elif action == "watch":
+        return await backend.watch_expression(expression)
+    return f"Unknown action: {action}"
 
 
 @mcp.tool(name="edb_debug_info")
+@gdb_error_handler
 async def edb_debug_info(
     action: Literal["list_source", "list_source_files", "ptype", "whatis", "frame_info"],
     file: Optional[str] = None,
@@ -2291,78 +2263,66 @@ async def edb_debug_info(
     expression: Optional[str] = None,
     frame_level: int = 0,
 ) -> str:
-    try:
-        if action == "list_source":
-            if file is None:
-                return "Error (list_source): file argument is required"
-            return await backend.get_source(file, line, count)
-        elif action == "list_source_files":
-            return await backend.list_source_files()
-        elif action == "ptype":
-            if expression is None:
-                return "Error (ptype): expression argument is required"
-            return await backend.ptype(expression)
-        elif action == "whatis":
-            if expression is None:
-                return "Error (whatis): expression argument is required"
-            return await backend.whatis(expression)
-        elif action == "frame_info":
-            return await backend.get_frame_info(frame_level)
-        else:
-            return f"Error (edb_debug_info): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "list_source":
+        if file is None:
+            return "Error (list_source): file argument is required"
+        return await backend.get_source(file, line, count)
+    elif action == "list_source_files":
+        return await backend.list_source_files()
+    elif action == "ptype":
+        if expression is None:
+            return "Error (ptype): expression argument is required"
+        return await backend.ptype(expression)
+    elif action == "whatis":
+        if expression is None:
+            return "Error (whatis): expression argument is required"
+        return await backend.whatis(expression)
+    elif action == "frame_info":
+        return await backend.get_frame_info(frame_level)
+    else:
+        return f"Error (edb_debug_info): Unknown action {action}"
 
 
 @mcp.tool(name="edb_thread")
+@gdb_error_handler
 async def edb_thread(
     action: Literal["list", "get_current", "set_current", "inferior_info"],
     thread_id: Optional[int] = None,
 ) -> str:
-    try:
-        if action == "list":
-            return await backend.list_threads()
-        elif action == "get_current":
-            info = await backend.get_current_thread()
-            return json.dumps(info, indent=2) if info else "No thread info"
-        elif action == "set_current":
-            if thread_id is None:
-                return "Error (set_current): thread_id argument is required"
-            return await backend.set_current_thread(thread_id)
-        elif action == "inferior_info":
-            return await backend.inferior_info()
-        else:
-            return f"Error (edb_thread): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "list":
+        return await backend.list_threads()
+    elif action == "get_current":
+        info = await backend.get_current_thread()
+        return json.dumps(info, indent=2) if info else "No thread info"
+    elif action == "set_current":
+        if thread_id is None:
+            return "Error (set_current): thread_id argument is required"
+        return await backend.set_current_thread(thread_id)
+    elif action == "inferior_info":
+        return await backend.inferior_info()
+    else:
+        return f"Error (edb_thread): Unknown action {action}"
 
 
 @mcp.tool(name="edb_module")
+@gdb_error_handler
 async def edb_module(
     action: Literal["list_modules", "arch_info", "list_plugins", "list_features"],
 ) -> str:
-    try:
-        if action == "list_modules":
-            return await backend.list_modules()
-        elif action == "arch_info":
-            return await backend.get_arch_info()
-        elif action == "list_plugins":
-            return await backend.list_plugins()
-        elif action == "list_features":
-            return await backend.list_features()
-        else:
-            return f"Error (edb_module): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "list_modules":
+        return await backend.list_modules()
+    elif action == "arch_info":
+        return await backend.get_arch_info()
+    elif action == "list_plugins":
+        return await backend.list_plugins()
+    elif action == "list_features":
+        return await backend.list_features()
+    else:
+        return f"Error (edb_module): Unknown action {action}"
 
 
 @mcp.tool(name="edb_analysis")
+@gdb_error_handler
 async def edb_analysis(
     action: Literal["analyze_region", "analyze_heap", "find_rop_gadgets", "analyze_basic_blocks", "generate_cfg", "exploit_generate", "process_strings"],
     address: str = "",
@@ -2376,38 +2336,34 @@ async def edb_analysis(
     arch: str = "amd64",
     min_length: int = 4,
 ) -> str:
-    try:
-        if action == "analyze_region":
-            if not address:
-                return "Error (analyze_region): address argument is required"
-            return await backend.analyze_region(address, size)
-        elif action == "analyze_heap":
-            return await backend.analyze_heap()
-        elif action == "find_rop_gadgets":
-            return await backend.find_rop_gadgets(address, depth, count)
-        elif action == "analyze_basic_blocks":
-            if not address:
-                return "Error (analyze_basic_blocks): address argument is required"
-            return await backend.analyze_basic_blocks(address, size)
-        elif action == "generate_cfg":
-            if not address:
-                return "Error (generate_cfg): address argument is required"
-            return await backend.generate_cfg(address, size)
-        elif action == "exploit_generate":
-            if not binary_path:
-                return "Error (exploit_generate): binary_path argument is required"
-            return await backend.exploit_generate(binary_path, offset, cmd, save_path, arch)
-        elif action == "process_strings":
-            return await backend.process_strings(min_length)
-        else:
-            return f"Error (edb_analysis): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "analyze_region":
+        if not address:
+            return "Error (analyze_region): address argument is required"
+        return await backend.analyze_region(address, size)
+    elif action == "analyze_heap":
+        return await backend.analyze_heap()
+    elif action == "find_rop_gadgets":
+        return await backend.find_rop_gadgets(address, depth, count)
+    elif action == "analyze_basic_blocks":
+        if not address:
+            return "Error (analyze_basic_blocks): address argument is required"
+        return await backend.analyze_basic_blocks(address, size)
+    elif action == "generate_cfg":
+        if not address:
+            return "Error (generate_cfg): address argument is required"
+        return await backend.generate_cfg(address, size)
+    elif action == "exploit_generate":
+        if not binary_path:
+            return "Error (exploit_generate): binary_path argument is required"
+        return await backend.exploit_generate(binary_path, offset, cmd, save_path, arch)
+    elif action == "process_strings":
+        return await backend.process_strings(min_length)
+    else:
+        return f"Error (edb_analysis): Unknown action {action}"
 
 
 @mcp.tool(name="edb_annotation")
+@gdb_error_handler
 async def edb_annotation(
     action: Literal["add_comment", "list_comments", "remove_comment", "add_bookmark", "list_bookmarks", "remove_bookmark", "label_address"],
     address: Optional[str] = None,
@@ -2415,40 +2371,36 @@ async def edb_annotation(
     name: Optional[str] = None,
     label: Optional[str] = None,
 ) -> str:
-    try:
-        if action == "add_comment":
-            if address is None or comment is None:
-                return "Error (add_comment): address and comment arguments are required"
-            return await backend.add_comment(address, comment)
-        elif action == "list_comments":
-            return await backend.list_comments()
-        elif action == "remove_comment":
-            if address is None:
-                return "Error (remove_comment): address argument is required"
-            return await backend.remove_comment(address)
-        elif action == "add_bookmark":
-            if name is None or address is None:
-                return "Error (add_bookmark): name and address arguments are required"
-            return await backend.add_bookmark(name, address)
-        elif action == "list_bookmarks":
-            return await backend.list_bookmarks()
-        elif action == "remove_bookmark":
-            if name is None:
-                return "Error (remove_bookmark): name argument is required"
-            return await backend.remove_bookmark(name)
-        elif action == "label_address":
-            if address is None or label is None:
-                return "Error (label_address): address and label arguments are required"
-            return await backend.label_address(address, label)
-        else:
-            return f"Error (edb_annotation): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "add_comment":
+        if address is None or comment is None:
+            return "Error (add_comment): address and comment arguments are required"
+        return await backend.add_comment(address, comment)
+    elif action == "list_comments":
+        return await backend.list_comments()
+    elif action == "remove_comment":
+        if address is None:
+            return "Error (remove_comment): address argument is required"
+        return await backend.remove_comment(address)
+    elif action == "add_bookmark":
+        if name is None or address is None:
+            return "Error (add_bookmark): name and address arguments are required"
+        return await backend.add_bookmark(name, address)
+    elif action == "list_bookmarks":
+        return await backend.list_bookmarks()
+    elif action == "remove_bookmark":
+        if name is None:
+            return "Error (remove_bookmark): name argument is required"
+        return await backend.remove_bookmark(name)
+    elif action == "label_address":
+        if address is None or label is None:
+            return "Error (label_address): address and label arguments are required"
+        return await backend.label_address(address, label)
+    else:
+        return f"Error (edb_annotation): Unknown action {action}"
 
 
 @mcp.tool(name="edb_session")
+@gdb_error_handler
 async def edb_session(
     action: Literal["status", "properties", "stop_reason", "dump_state", "export_state", "session_save", "session_load", "set_working_directory", "send_signal", "core_dump", "remote_connect", "remote_arch", "remote_info", "patch_history"],
     file_path: Optional[str] = None,
@@ -2459,58 +2411,54 @@ async def edb_session(
     extended: bool = False,
     clear: bool = False,
 ) -> str:
-    try:
-        if action == "status":
-            status = await backend.status()
-            return json.dumps(status, indent=2)
-        elif action == "properties":
-            return await backend.get_process_properties()
-        elif action == "stop_reason":
-            return await backend.get_stop_reason()
-        elif action == "dump_state":
-            return await backend.dump_state()
-        elif action == "export_state":
-            return await backend.export_state()
-        elif action == "session_save":
-            if file_path is None:
-                return "Error (session_save): file_path argument is required"
-            return await backend.session_save(file_path)
-        elif action == "session_load":
-            if file_path is None:
-                return "Error (session_load): file_path argument is required"
-            return await backend.session_load(file_path)
-        elif action == "set_working_directory":
-            if directory is None:
-                return "Error (set_working_directory): directory argument is required"
-            return await backend.set_working_directory(directory)
-        elif action == "send_signal":
-            if signum is None:
-                return "Error (send_signal): signum argument is required"
-            return await backend.send_signal(signum)
-        elif action == "core_dump":
-            return await backend.generate_core_dump(file_path or "")
-        elif action == "remote_connect":
-            if host is None or port is None:
-                return "Error (remote_connect): host and port arguments are required"
-            return await backend.remote_connect(host, port, extended)
-        elif action == "remote_arch":
-            return await backend.remote_arch()
-        elif action == "remote_info":
-            return await backend.remote_info()
-        elif action == "patch_history":
-            if clear:
-                return await backend.clear_patch_history()
-            else:
-                return await backend.get_patch_history()
+    if action == "status":
+        status = await backend.status()
+        return json.dumps(status, indent=2)
+    elif action == "properties":
+        return await backend.get_process_properties()
+    elif action == "stop_reason":
+        return await backend.get_stop_reason()
+    elif action == "dump_state":
+        return await backend.dump_state()
+    elif action == "export_state":
+        return await backend.export_state()
+    elif action == "session_save":
+        if file_path is None:
+            return "Error (session_save): file_path argument is required"
+        return await backend.session_save(file_path)
+    elif action == "session_load":
+        if file_path is None:
+            return "Error (session_load): file_path argument is required"
+        return await backend.session_load(file_path)
+    elif action == "set_working_directory":
+        if directory is None:
+            return "Error (set_working_directory): directory argument is required"
+        return await backend.set_working_directory(directory)
+    elif action == "send_signal":
+        if signum is None:
+            return "Error (send_signal): signum argument is required"
+        return await backend.send_signal(signum)
+    elif action == "core_dump":
+        return await backend.generate_core_dump(file_path or "")
+    elif action == "remote_connect":
+        if host is None or port is None:
+            return "Error (remote_connect): host and port arguments are required"
+        return await backend.remote_connect(host, port, extended)
+    elif action == "remote_arch":
+        return await backend.remote_arch()
+    elif action == "remote_info":
+        return await backend.remote_info()
+    elif action == "patch_history":
+        if clear:
+            return await backend.clear_patch_history()
         else:
-            return f"Error (edb_session): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+            return await backend.get_patch_history()
+    else:
+        return f"Error (edb_session): Unknown action {action}"
 
 
 @mcp.tool(name="edb_patch")
+@gdb_error_handler
 async def edb_patch(
     action: Literal["file_offset_to_va", "va_to_file_offset", "nop_range", "jump_to_address", "call_function", "view_at_address", "binary_diff", "binary_string_convert", "compare_snapshot", "pipeline_run"],
     offset: Optional[int] = None,
@@ -2527,50 +2475,46 @@ async def edb_patch(
     args: str = "",
     dump_registers: bool = True,
 ) -> str:
-    try:
-        if action == "file_offset_to_va":
-            if offset is None:
-                return "Error (file_offset_to_va): offset argument is required"
-            return await backend.file_offset_to_va(offset)
-        elif action == "va_to_file_offset":
-            if address is None:
-                return "Error (va_to_file_offset): address argument is required"
-            return await backend.va_to_file_offset(address)
-        elif action == "nop_range":
-            if start_address is None or end_address is None:
-                return "Error (nop_range): start_address and end_address arguments are required"
-            return await backend.nop_range(start_address, end_address)
-        elif action == "jump_to_address":
-            if address is None:
-                return "Error (jump_to_address): address argument is required"
-            return await backend.jump_to_address(address)
-        elif action == "call_function":
-            if function_expr is None:
-                return "Error (call_function): function_expr argument is required"
-            return await backend.call_function(function_expr)
-        elif action == "view_at_address":
-            if address is None:
-                return "Error (view_at_address): address argument is required"
-            return await backend.view_at_address(address)
-        elif action == "binary_diff":
-            return await backend.binary_diff()
-        elif action == "binary_string_convert":
-            return await backend.binary_string_convert(hex_str, ascii_str, utf16_str)
-        elif action == "compare_snapshot":
-            return await backend.compare_snapshot(label)
-        elif action == "pipeline_run":
-            if binary is None:
-                return "Error (pipeline_run): binary argument is required"
-            return await backend.pipeline_run(binary, breakpoint, args, dump_registers)
-        else:
-            return f"Error (edb_patch): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "file_offset_to_va":
+        if offset is None:
+            return "Error (file_offset_to_va): offset argument is required"
+        return await backend.file_offset_to_va(offset)
+    elif action == "va_to_file_offset":
+        if address is None:
+            return "Error (va_to_file_offset): address argument is required"
+        return await backend.va_to_file_offset(address)
+    elif action == "nop_range":
+        if start_address is None or end_address is None:
+            return "Error (nop_range): start_address and end_address arguments are required"
+        return await backend.nop_range(start_address, end_address)
+    elif action == "jump_to_address":
+        if address is None:
+            return "Error (jump_to_address): address argument is required"
+        return await backend.jump_to_address(address)
+    elif action == "call_function":
+        if function_expr is None:
+            return "Error (call_function): function_expr argument is required"
+        return await backend.call_function(function_expr)
+    elif action == "view_at_address":
+        if address is None:
+            return "Error (view_at_address): address argument is required"
+        return await backend.view_at_address(address)
+    elif action == "binary_diff":
+        return await backend.binary_diff()
+    elif action == "binary_string_convert":
+        return await backend.binary_string_convert(hex_str, ascii_str, utf16_str)
+    elif action == "compare_snapshot":
+        return await backend.compare_snapshot(label)
+    elif action == "pipeline_run":
+        if binary is None:
+            return "Error (pipeline_run): binary argument is required"
+        return await backend.pipeline_run(binary, breakpoint, args, dump_registers)
+    else:
+        return f"Error (edb_patch): Unknown action {action}"
 
 
 @mcp.tool(name="edb_config")
+@gdb_error_handler
 async def edb_config(
     action: Literal["configure", "show", "disable_aslr", "disable_lazy_binding", "signal_handling", "list_signals", "set_catchpoint", "set_tty", "set_debug_output", "load_symbol_file", "get_changed_registers"],
     setting: str = "",
@@ -2586,48 +2530,44 @@ async def edb_config(
     file_path: Optional[str] = None,
     address: str = "",
 ) -> str:
-    try:
-        if action == "configure":
-            if not setting:
-                return "Error (configure): setting argument is required"
-            return await backend.configure_debugger(setting, value)
-        elif action == "show":
-            return await backend.show_configuration(setting)
-        elif action == "disable_aslr":
-            return await backend.set_disable_aslr(disable)
-        elif action == "disable_lazy_binding":
-            return await backend.set_disable_lazy_binding(disable)
-        elif action == "signal_handling":
-            if not signal:
-                return "Error (signal_handling): signal argument is required"
-            return await backend.signal_handling(signal, action_param)
-        elif action == "list_signals":
-            return await backend.list_signals(signal)
-        elif action == "set_catchpoint":
-            if not event:
-                return "Error (set_catchpoint): event argument is required"
-            return await backend.set_catchpoint(event, condition)
-        elif action == "set_tty":
-            if tty_path is None:
-                return "Error (set_tty): tty_path argument is required"
-            return await backend.set_tty(tty_path)
-        elif action == "set_debug_output":
-            return await backend.set_debug_output(category, enable)
-        elif action == "load_symbol_file":
-            if file_path is None:
-                return "Error (load_symbol_file): file_path argument is required"
-            return await backend.load_symbol_file(file_path, address)
-        elif action == "get_changed_registers":
-            return await backend.get_changed_registers()
-        else:
-            return f"Error (edb_config): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "configure":
+        if not setting:
+            return "Error (configure): setting argument is required"
+        return await backend.configure_debugger(setting, value)
+    elif action == "show":
+        return await backend.show_configuration(setting)
+    elif action == "disable_aslr":
+        return await backend.set_disable_aslr(disable)
+    elif action == "disable_lazy_binding":
+        return await backend.set_disable_lazy_binding(disable)
+    elif action == "signal_handling":
+        if not signal:
+            return "Error (signal_handling): signal argument is required"
+        return await backend.signal_handling(signal, action_param)
+    elif action == "list_signals":
+        return await backend.list_signals(signal)
+    elif action == "set_catchpoint":
+        if not event:
+            return "Error (set_catchpoint): event argument is required"
+        return await backend.set_catchpoint(event, condition)
+    elif action == "set_tty":
+        if tty_path is None:
+            return "Error (set_tty): tty_path argument is required"
+        return await backend.set_tty(tty_path)
+    elif action == "set_debug_output":
+        return await backend.set_debug_output(category, enable)
+    elif action == "load_symbol_file":
+        if file_path is None:
+            return "Error (load_symbol_file): file_path argument is required"
+        return await backend.load_symbol_file(file_path, address)
+    elif action == "get_changed_registers":
+        return await backend.get_changed_registers()
+    else:
+        return f"Error (edb_config): Unknown action {action}"
 
 
 @mcp.tool(name="edb_environment")
+@gdb_error_handler
 async def edb_environment(
     action: Literal["set_env", "unset_env", "get_env", "set_logging", "execute_gdb_command"],
     name: Optional[str] = None,
@@ -2637,28 +2577,23 @@ async def edb_environment(
     command: Optional[str] = None,
     timeout: int = 10,
 ) -> str:
-    try:
-        if action == "set_env":
-            if name is None or value is None:
-                return "Error (set_env): name and value arguments are required"
-            return await backend.set_environment_variable(name, value)
-        elif action == "unset_env":
-            if name is None:
-                return "Error (unset_env): name argument is required"
-            return await backend.unset_environment_variable(name)
-        elif action == "get_env":
-            return await backend.get_environment()
-        elif action == "set_logging":
-            if file_path is None:
-                return "Error (set_logging): file_path argument is required"
-            return await backend.set_session_logging(file_path, enable)
-        elif action == "execute_gdb_command":
-            if command is None:
-                return "Error (execute_gdb_command): command argument is required"
-            return await backend.execute_gdb_command(command, timeout)
-        else:
-            return f"Error (edb_environment): Unknown action {action}"
-    except GDBBackendError as e:
-        return f"Error ({action}): {e}"
-    except Exception as e:
-        return f"Error ({action}): Unexpected error: {e}"
+    if action == "set_env":
+        if name is None or value is None:
+            return "Error (set_env): name and value arguments are required"
+        return await backend.set_environment_variable(name, value)
+    elif action == "unset_env":
+        if name is None:
+            return "Error (unset_env): name argument is required"
+        return await backend.unset_environment_variable(name)
+    elif action == "get_env":
+        return await backend.get_environment()
+    elif action == "set_logging":
+        if file_path is None:
+            return "Error (set_logging): file_path argument is required"
+        return await backend.set_session_logging(file_path, enable)
+    elif action == "execute_gdb_command":
+        if command is None:
+            return "Error (execute_gdb_command): command argument is required"
+        return await backend.execute_gdb_command(command, timeout)
+    else:
+        return f"Error (edb_environment): Unknown action {action}"
