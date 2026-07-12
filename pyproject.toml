@@ -82,9 +82,6 @@ ignore = [
 [tool.hatch.build.targets.wheel]
 packages = [
     "edb_debugger_mcp/",
-    "gdb_backend.py",
-    "pwntools_mcp.py",
-    "edb_models.py",
     "binaryninja_mcp/",
     "web_ui/",
 ]

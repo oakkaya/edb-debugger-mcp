@@ -6,7 +6,7 @@ test:
 	python3 -m pytest tests/ -v --tb=short
 
 test-cov:
-	python3 -m pytest tests/ -v --tb=short --ignore=tests/live_test.py --ignore=tests/test_integration.py -k "not integration" --cov=edb_debugger_mcp --cov=gdb_backend --cov=pwntools_mcp --cov-report=term
+	python3 -m pytest tests/ -v --tb=short --ignore=tests/live_test.py --ignore=tests/test_integration.py -k "not integration" 	--cov=edb_debugger_mcp --cov-report=term
 
 test-live:
 	python3 tests/live_test.py
@@ -38,8 +38,7 @@ clean:
 lint:
 	python3 -m py_compile scripts/generate_tool_table.py
 	python3 -m py_compile edb_debugger_mcp.py
-	python3 -m py_compile gdb_backend.py
-	python3 -m py_compile pwntools_mcp.py
+	python3 -m py_compile edb_debugger_mcp/gdb_backend.py
 
 # ── Default ──
 

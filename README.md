@@ -504,11 +504,9 @@ edb-debugger-mcp/
 ├── edb_debugger_mcp/        # Package: FastMCP server (19 composite edb_ tools)
 │   ├── __init__.py           # Entry point + main()
 │   ├── _mcp.py               # FastMCP instance + GDB backend init
-│   ├── composite_tools.py    # 26 composite tools (parameter-driven dispatch, minimal context overhead)
-│   └── tools.py              # Legacy flat tool implementations (157 functions, wrapped by composite)
-├── gdb_backend.py             # GDB MI backend (172 public methods, MI parser, session mgmt)
-├── edb_models.py              # 93+ Pydantic models for tool parameters
-├── pwntools_mcp.py           # Pwntools integration (flat functions, wrapped into 7 composite tools)
+│   ├── composite_tools.py    # 26 composite tools (19 edb_ + 7 pwntools_)
+│   ├── gdb_backend.py        # GDB MI backend (172 public methods, MI parser, session mgmt)
+│   └── edb_models.py         # Pydantic models for tool parameters
 ├── web_ui/                    # Web debugger frontend (FastAPI + htmx, browser-based)
 │   ├── server.py              # FastAPI app, tool categories, multi-page routing
 │   └── templates/             # Static HTML + JavaScript frontend
